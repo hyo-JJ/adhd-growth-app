@@ -222,7 +222,7 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
           <div className="row">
             <input
               type="text"
-              placeholder="예: 쇼츠 썸네일 아이디어"
+              placeholder="예: 저녁 뭐 먹지"
               value={ideaText}
               onChange={(e) => setIdeaText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submitIdea()}

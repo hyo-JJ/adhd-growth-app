@@ -14,10 +14,8 @@ const STAGES = [
 
 const IDEA_STAGES = [
   { id: 'idea', label: '아이디어' },
-  { id: 'shooting_plan', label: '촬영 예정' },
-  { id: 'shooting', label: '촬영' },
-  { id: 'editing', label: '편집' },
-  { id: 'uploaded', label: '업로드' },
+  { id: 'doing', label: '진행중' },
+  { id: 'done', label: '완료' },
 ];
 
 export default function My() {
@@ -213,7 +211,7 @@ function ProjectSection({ store }) {
   );
 }
 
-const TAG_SUGGESTIONS = ['#앱', '#쇼츠', '#브이로그'];
+const TAG_SUGGESTIONS = ['#아이디어', '#할일', '#나중에'];
 const STALE_DAYS = 7;
 
 function daysSince(dateStr) {
@@ -291,7 +289,7 @@ function IdeaSection({ store }) {
           {shown.length === 0 && <div className="empty-state">아직 이 단계엔 아이디어가 없어요.</div>}
           <div className="idea-grid">
             {shown.map((i) => {
-              const stale = i.status !== 'uploaded' && daysSince(i.createdAt) >= STALE_DAYS;
+              const stale = i.status !== 'done' && daysSince(i.createdAt) >= STALE_DAYS;
               return (
                 <div className="idea-card" key={i.id}>
                   <button className="del-btn" onClick={() => deleteIdea(i.id)} aria-label="삭제">✕</button>
@@ -302,7 +300,7 @@ function IdeaSection({ store }) {
                     {i.tag && `${i.tag} · `}
                     {i.createdAt ? new Date(i.createdAt).toISOString().slice(5, 10).replace('-', '월 ') + '일' : ''}
                   </div>
-                  {i.status !== 'uploaded' && (
+                  {i.status !== 'done' && (
                     <button className="arrow-btn" onClick={() => advance(i)} aria-label="다음 단계로">
                       →
                     </button>
