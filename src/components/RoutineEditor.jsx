@@ -20,7 +20,7 @@ export function RoutineForm({ initial, onSubmit, lockCategory = false }) {
     <div>
       <div className="field">
         <label>이름</label>
-        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 일본어 공부" autoFocus />
+        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 영어 공부" autoFocus />
       </div>
       {!lockCategory && (
         <>

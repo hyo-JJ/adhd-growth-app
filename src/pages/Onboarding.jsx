@@ -8,17 +8,17 @@ import { weekdayLabel } from '../lib/date';
 const EXAMPLE_PLAN = {
   goals: [
     {
-      title: '일본 취업 준비',
-      category: 'japanese',
+      title: '자격증 시험 합격',
+      category: 'study',
       subGoals: [
-        { title: '일본어 N3 취득', progress: 0 },
-        { title: '포트폴리오 완성', progress: 0 },
+        { title: '인강 완강하기', progress: 0 },
+        { title: '기출문제 3회독', progress: 0 },
       ],
     },
   ],
   routines: [
-    { title: '일본어 공부', category: 'japanese', days: [0, 1, 2, 3, 4, 5, 6], amount: 30, minAmount: 10, unit: '분' },
-    { title: '운동', category: 'exercise', days: [0, 1, 2, 3, 4, 5, 6], amount: 500, minAmount: 100, unit: '회' },
+    { title: '집중 공부', category: 'study', days: [0, 1, 2, 3, 4, 5, 6], amount: 30, minAmount: 10, unit: '분' },
+    { title: '홈트레이닝', category: 'exercise', days: [0, 1, 2, 3, 4, 5, 6], amount: 15, minAmount: 5, unit: '분' },
     { title: '물 마시기', category: 'selfcare', days: [0, 1, 2, 3, 4, 5, 6], amount: 2, minAmount: 1, unit: 'L' },
   ],
 };

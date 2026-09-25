@@ -286,7 +286,7 @@ export default function Goals() {
       <Sheet open={goalSheet} onClose={() => setGoalSheet(false)} title="새 목표">
         <div className="field">
           <label>목표 이름</label>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 일본 취업 준비" autoFocus />
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 자격증 시험 합격" autoFocus />
         </div>
         <label>분야</label>
         <div className="chip-row">
@@ -305,7 +305,7 @@ export default function Goals() {
       <Sheet open={!!subSheetFor} onClose={() => setSubSheetFor(null)} title="세부 목표 추가">
         <div className="field">
           <label>세부 목표</label>
-          <input type="text" value={subTitle} onChange={(e) => setSubTitle(e.target.value)} placeholder="예: 일본어 N3 취득" autoFocus />
+          <input type="text" value={subTitle} onChange={(e) => setSubTitle(e.target.value)} placeholder="예: 인강 완강하기" autoFocus />
         </div>
         <div style={{ height: 16 }} />
         <button className="btn block" onClick={submitSub}>추가하기</button>
