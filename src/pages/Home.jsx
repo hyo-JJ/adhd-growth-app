@@ -7,6 +7,7 @@ import Sheet from '../components/Sheet';
 import Mascot from '../components/Mascot';
 import CategoryIcon from '../components/CategoryIcon';
 import FocusMode from '../components/FocusMode';
+import ReschedulePlanner from '../components/ReschedulePlanner';
 
 const MOODS = [
   { id: 'tired', label: '졸려요', face: '😪' },
@@ -21,6 +22,8 @@ export default function Home() {
     clearCompletion,
     toggleCustomTask,
     addCustomTask,
+    updateCustomTask,
+    deleteCustomTask,
     toggleMinimalMode,
     addIdea,
   } = useStore();
@@ -32,11 +35,13 @@ export default function Home() {
   const [addOpen, setAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState('etc');
+  const [newMinutes, setNewMinutes] = useState('');
   const [mood, setMood] = useState(null);
   const [heroIndex, setHeroIndex] = useState(0);
   const [focusItem, setFocusItem] = useState(null);
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [ideaText, setIdeaText] = useState('');
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
 
   const incomplete = items.filter((i) => !i.done);
   useEffect(() => {
@@ -62,8 +67,14 @@ export default function Home() {
 
   function submitAdd() {
     if (!newTitle.trim()) return;
-    addCustomTask({ title: newTitle.trim(), category: newCategory, date: t });
+    addCustomTask({
+      title: newTitle.trim(),
+      category: newCategory,
+      date: t,
+      estMinutes: newMinutes ? Number(newMinutes) : null,
+    });
     setNewTitle('');
+    setNewMinutes('');
     setAddOpen(false);
   }
 
@@ -74,7 +85,7 @@ export default function Home() {
     setIdeaOpen(false);
   }
 
-  const overdueCount = state.customTasks.filter((c) => !c.done && c.carriedFrom && c.date === t).length;
+  const overdueTasks = state.customTasks.filter((c) => !c.done && c.date < t);
   const heroCat = hero ? getCategory(hero.category) : null;
   const heroTarget =
     hero && hero.kind === 'routine' ? `${minimal && hero.minTarget != null ? hero.minTarget : hero.target}${hero.unit}` : null;
@@ -92,8 +103,10 @@ export default function Home() {
       </div>
 
       <div className="app-main" style={{ paddingTop: 4 }}>
-        {overdueCount > 0 && (
-          <div className="banner">🔁 밀린 일정 {overdueCount}개가 오늘로 옮겨졌어요.</div>
+        {overdueTasks.length > 0 && (
+          <button className="banner" style={{ width: '100%', border: 'none', cursor: 'pointer', textAlign: 'left' }} onClick={() => setRescheduleOpen(true)}>
+            🔁 밀린 일정 {overdueTasks.length}개, 다시 계획해볼까요?
+          </button>
         )}
 
         <div className="card mood-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
@@ -242,6 +255,13 @@ export default function Home() {
             );
           })}
         </div>
+        <label>예상 시간 (분, 선택)</label>
+        <input
+          type="number"
+          value={newMinutes}
+          onChange={(e) => setNewMinutes(e.target.value)}
+          placeholder="예: 60"
+        />
         <div style={{ height: 16 }} />
         <button className="btn block" onClick={submitAdd}>
           추가하기
@@ -270,7 +290,16 @@ export default function Home() {
           item={focusItem}
           onClose={() => setFocusItem(null)}
           onComplete={() => toggleItem(focusItem)}
-          onParkIdea={(text) => addIdea({ title: text })}
+          onParkIdea={(text) => addIdea({ title: text, capturedInFocus: true })}
+        />
+      )}
+
+      {rescheduleOpen && (
+        <ReschedulePlanner
+          tasks={overdueTasks}
+          updateCustomTask={updateCustomTask}
+          deleteCustomTask={deleteCustomTask}
+          onClose={() => setRescheduleOpen(false)}
         />
       )}
     </>

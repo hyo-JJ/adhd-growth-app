@@ -39,24 +39,6 @@ export function StoreProvider({ children }) {
     };
   }, [user]);
 
-  // reschedule overdue custom tasks to today, once per loaded session
-  useEffect(() => {
-    if (!ready || !user) return;
-    const t = today();
-    const overdue = state.customTasks.filter((task) => !task.done && task.date < t);
-    if (overdue.length === 0) return;
-    setState((s) => ({
-      ...s,
-      customTasks: s.customTasks.map((task) =>
-        !task.done && task.date < t ? { ...task, date: t, carriedFrom: task.carriedFrom || task.date } : task
-      ),
-    }));
-    for (const task of overdue) {
-      db.updateCustomTask(task.id, { date: t, carriedFrom: task.carriedFrom || task.date }).catch(fail);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, user]);
-
   const actions = useMemo(
     () => ({
       addGoal(goal) {
@@ -150,6 +132,10 @@ export function StoreProvider({ children }) {
       deleteCustomTask(id) {
         setState((s) => ({ ...s, customTasks: s.customTasks.filter((t) => t.id !== id) }));
         db.deleteCustomTask(id).catch(fail);
+      },
+      updateCustomTask(id, patch) {
+        setState((s) => ({ ...s, customTasks: s.customTasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
+        db.updateCustomTask(id, patch).catch(fail);
       },
 
       addWeightLog(kg, date = today()) {

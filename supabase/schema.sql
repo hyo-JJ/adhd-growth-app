@@ -42,6 +42,8 @@ create table if not exists routines (
   min_amount numeric,
   unit text not null default '',
   steps text[],
+  goal_id uuid references goals(id) on delete set null,
+  sub_goal_id uuid references sub_goals(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
@@ -64,6 +66,7 @@ create table if not exists custom_tasks (
   date date not null,
   done boolean not null default false,
   carried_from date,
+  est_minutes numeric,
   created_at timestamptz not null default now()
 );
 
@@ -91,6 +94,8 @@ create table if not exists ideas (
   user_id uuid not null references auth.users(id) on delete cascade,
   title text not null,
   status text not null default 'idea',
+  tag text,
+  captured_in_focus boolean not null default false,
   created_at timestamptz not null default now()
 );
 

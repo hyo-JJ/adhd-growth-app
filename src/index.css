@@ -1065,3 +1065,166 @@ label {
   display: flex;
   gap: 10px;
 }
+
+/* goal split suggestion */
+.split-card {
+  border: 2px dashed #e4b857;
+  background: #fdf6e3;
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.split-card .split-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.split-card .split-meta {
+  font-size: 12px;
+  color: #9a7d2e;
+  margin-top: 2px;
+}
+
+.split-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.split-actions > button {
+  flex: 1;
+}
+
+.step-preview {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.step-preview .sp-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--text-dim);
+}
+
+.step-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 4px 0;
+  color: var(--text-dim);
+}
+
+.step-preview-row .num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.chevron {
+  transition: transform 0.15s ease;
+  color: var(--text-faint);
+}
+
+.chevron.open {
+  transform: rotate(90deg);
+}
+
+/* idea box */
+.idea-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.idea-card {
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 14px 34px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 96px;
+  position: relative;
+}
+
+.idea-card .badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  align-self: flex-start;
+}
+
+.idea-card .badge.focus {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.idea-card .badge.stale {
+  background: #fdf0c8;
+  color: #8a6a1f;
+}
+
+.idea-card .idea-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.idea-card .idea-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: auto;
+}
+
+.idea-card .arrow-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.idea-card .del-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 11px;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+}

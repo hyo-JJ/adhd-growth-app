@@ -12,7 +12,8 @@ function formatClock(totalSeconds) {
 }
 
 export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
-  const totalMinutes = item.unit === '분' && item.target ? item.target : 25;
+  const rawTarget = item.target ?? item.amount;
+  const totalMinutes = item.unit === '분' && rawTarget ? rawTarget : 25;
   const totalSeconds = totalMinutes * 60;
   const [remaining, setRemaining] = useState(totalSeconds);
   const [paused, setPaused] = useState(false);

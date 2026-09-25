@@ -61,6 +61,8 @@ export async function fetchAll(userId) {
       minAmount: r.min_amount == null ? null : Number(r.min_amount),
       unit: r.unit,
       steps: r.steps || null,
+      goalId: r.goal_id || null,
+      subGoalId: r.sub_goal_id || null,
     })),
     completions: completionsMap,
     customTasks: (await check(customTasks)).map((t) => ({
@@ -70,10 +72,18 @@ export async function fetchAll(userId) {
       date: t.date,
       done: t.done,
       carriedFrom: t.carried_from || null,
+      estMinutes: t.est_minutes == null ? null : Number(t.est_minutes),
     })),
     weightLogs: (await check(weightLogs)).map((w) => ({ id: w.id, date: w.date, kg: Number(w.kg) })),
     projects: (await check(projects)).map((p) => ({ id: p.id, name: p.name, stage: p.stage })),
-    ideas: (await check(ideas)).map((i) => ({ id: i.id, title: i.title, status: i.status })),
+    ideas: (await check(ideas)).map((i) => ({
+      id: i.id,
+      title: i.title,
+      status: i.status,
+      tag: i.tag || '',
+      capturedInFocus: i.captured_in_focus,
+      createdAt: i.created_at,
+    })),
     vocab: (await check(vocab)).map((v) => ({
       id: v.id,
       word: v.word,
@@ -148,6 +158,8 @@ export const db = {
         min_amount: routine.minAmount,
         unit: routine.unit,
         steps: routine.steps || null,
+        goal_id: routine.goalId || null,
+        sub_goal_id: routine.subGoalId || null,
       })
     ),
   updateRoutine: (id, patch) =>
@@ -162,6 +174,8 @@ export const db = {
           ...(patch.minAmount !== undefined && { min_amount: patch.minAmount }),
           ...(patch.unit !== undefined && { unit: patch.unit }),
           ...(patch.steps !== undefined && { steps: patch.steps }),
+          ...(patch.goalId !== undefined && { goal_id: patch.goalId }),
+          ...(patch.subGoalId !== undefined && { sub_goal_id: patch.subGoalId }),
         })
         .eq('id', id)
     ),
@@ -186,6 +200,7 @@ export const db = {
         date: task.date,
         done: task.done ?? false,
         carried_from: task.carriedFrom || null,
+        est_minutes: task.estMinutes ?? null,
       })
     ),
   updateCustomTask: (id, patch) =>
@@ -196,6 +211,7 @@ export const db = {
           ...(patch.done !== undefined && { done: patch.done }),
           ...(patch.date !== undefined && { date: patch.date }),
           ...(patch.carriedFrom !== undefined && { carried_from: patch.carriedFrom }),
+          ...(patch.estMinutes !== undefined && { est_minutes: patch.estMinutes }),
         })
         .eq('id', id)
     ),
@@ -212,8 +228,28 @@ export const db = {
   deleteProject: (id) => check(supabase.from('projects').delete().eq('id', id)),
 
   insertIdea: (userId, idea) =>
-    check(supabase.from('ideas').insert({ id: idea.id, user_id: userId, title: idea.title, status: idea.status || 'idea' })),
-  updateIdea: (id, patch) => check(supabase.from('ideas').update(patch).eq('id', id)),
+    check(
+      supabase.from('ideas').insert({
+        id: idea.id,
+        user_id: userId,
+        title: idea.title,
+        status: idea.status || 'idea',
+        tag: idea.tag || null,
+        captured_in_focus: idea.capturedInFocus ?? false,
+      })
+    ),
+  updateIdea: (id, patch) =>
+    check(
+      supabase
+        .from('ideas')
+        .update({
+          ...(patch.title !== undefined && { title: patch.title }),
+          ...(patch.status !== undefined && { status: patch.status }),
+          ...(patch.tag !== undefined && { tag: patch.tag }),
+          ...(patch.capturedInFocus !== undefined && { captured_in_focus: patch.capturedInFocus }),
+        })
+        .eq('id', id)
+    ),
   deleteIdea: (id) => check(supabase.from('ideas').delete().eq('id', id)),
 
   insertVocab: (userId, v) =>

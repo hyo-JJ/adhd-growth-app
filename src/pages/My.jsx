@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
-import { getCategory, CATEGORIES } from '../lib/categories';
 import { weekdayLabel } from '../lib/date';
-import Sheet from '../components/Sheet';
+import RoutineSheet from '../components/RoutineEditor';
+import CategoryIcon from '../components/CategoryIcon';
 
 const STAGES = [
   { id: 'idea', label: '아이디어' },
@@ -104,11 +104,11 @@ function RoutineSection({ state, onAdd, onEdit, deleteRoutine }) {
       </div>
       {state.routines.length === 0 && <div className="empty-state">등록된 루틴이 없어요.</div>}
       {state.routines.map((r) => {
-        const cat = getCategory(r.category);
         return (
-          <div className="task-row" key={r.id}>
+          <div className="task-row plain" key={r.id}>
+            <CategoryIcon id={r.category} />
             <div className="task-title" onClick={() => onEdit(r)} style={{ cursor: 'pointer' }}>
-              {cat.emoji} {r.title}
+              {r.title}
               <div className="task-meta">
                 {r.days.length === 7 ? '매일' : r.days.map(weekdayLabel).join(',')} · {r.amount}{r.unit}
                 {r.minAmount != null && ` (최소 ${r.minAmount}${r.unit})`}
@@ -118,101 +118,6 @@ function RoutineSection({ state, onAdd, onEdit, deleteRoutine }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function RoutineSheet({ open, onClose, routine, addRoutine, updateRoutine }) {
-  const isEdit = !!routine;
-
-  return (
-    <Sheet open={open} onClose={onClose} title={isEdit ? '루틴 수정' : '새 루틴'} key={(routine?.id || 'new') + '-' + open}>
-      <RoutineForm
-        initial={routine}
-        onSubmit={(data) => {
-          if (isEdit) updateRoutine(routine.id, data);
-          else addRoutine(data);
-          onClose();
-        }}
-      />
-    </Sheet>
-  );
-}
-
-function RoutineForm({ initial, onSubmit }) {
-  const [title, setTitle] = useState(initial?.title || '');
-  const [category, setCategory] = useState(initial?.category || 'etc');
-  const [days, setDays] = useState(initial?.days || [0, 1, 2, 3, 4, 5, 6]);
-  const [amount, setAmount] = useState(initial?.amount ?? '');
-  const [minAmount, setMinAmount] = useState(initial?.minAmount ?? '');
-  const [unit, setUnit] = useState(initial?.unit || '분');
-  const [stepsText, setStepsText] = useState((initial?.steps || []).join('\n'));
-
-  function toggleDay(d) {
-    setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
-  }
-
-  return (
-    <div>
-      <div className="field">
-        <label>루틴 이름</label>
-        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 일본어 공부" autoFocus />
-      </div>
-      <label>분야</label>
-      <div className="chip-row">
-        {CATEGORIES.map((c) => (
-          <button key={c.id} className={'chip' + (category === c.id ? ' active' : '')} onClick={() => setCategory(c.id)}>
-            {c.emoji} {c.label}
-          </button>
-        ))}
-      </div>
-      <label>반복 요일</label>
-      <div className="day-pill-row">
-        {[0, 1, 2, 3, 4, 5, 6].map((d) => (
-          <button key={d} className={'day-pill' + (days.includes(d) ? ' active' : '')} onClick={() => toggleDay(d)}>
-            {weekdayLabel(d)}
-          </button>
-        ))}
-      </div>
-      <div className="row">
-        <div>
-          <label>목표량</label>
-          <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="30" />
-        </div>
-        <div>
-          <label>단위</label>
-          <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="분/회/L" />
-        </div>
-      </div>
-      <label>최소 루틴 목표량 (선택, "오늘 너무 바빠"용)</label>
-      <input type="number" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} placeholder="10" />
-      <label>✂ 작은 단계 (선택, 집중 모드에서 보여줘요)</label>
-      <textarea
-        value={stepsText}
-        onChange={(e) => setStepsText(e.target.value)}
-        placeholder={'한 줄에 하나씩 적어주세요\n예: 단어장 Day 12 열기\n1~10번 소리 내어 읽기'}
-      />
-      <div style={{ height: 16 }} />
-      <button
-        className="btn block"
-        onClick={() =>
-          title.trim() &&
-          onSubmit({
-            title: title.trim(),
-            category,
-            days,
-            amount: Number(amount) || 0,
-            minAmount: minAmount === '' ? null : Number(minAmount),
-            unit,
-            steps: stepsText
-              .split('\n')
-              .map((s) => s.trim())
-              .filter(Boolean),
-          })
-        }
-      >
-        저장
-      </button>
     </div>
   );
 }
@@ -306,16 +211,38 @@ function ProjectSection({ store }) {
   );
 }
 
+const TAG_SUGGESTIONS = ['#앱', '#쇼츠', '#브이로그'];
+const STALE_DAYS = 7;
+
+function daysSince(dateStr) {
+  if (!dateStr) return 0;
+  const then = new Date(dateStr).setHours(0, 0, 0, 0);
+  const now = new Date().setHours(0, 0, 0, 0);
+  return Math.round((now - then) / 86400000);
+}
+
 function IdeaSection({ store }) {
   const { state, addIdea, updateIdea, deleteIdea } = store;
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState('');
+  const [pendingTag, setPendingTag] = useState('');
+  const [activeStage, setActiveStage] = useState('idea');
 
   function submit() {
     if (!content.trim()) return;
-    addIdea({ title: content.trim() });
+    addIdea({ title: content.trim(), tag: pendingTag });
     setContent('');
+    setPendingTag('');
   }
+
+  function advance(idea) {
+    const idx = IDEA_STAGES.findIndex((s) => s.id === idea.status);
+    if (idx === -1 || idx === IDEA_STAGES.length - 1) return;
+    updateIdea(idea.id, { status: IDEA_STAGES[idx + 1].id });
+  }
+
+  const counts = Object.fromEntries(IDEA_STAGES.map((s) => [s.id, state.ideas.filter((i) => i.status === s.id).length]));
+  const shown = state.ideas.filter((i) => i.status === activeStage);
 
   return (
     <div className="card">
@@ -326,21 +253,62 @@ function IdeaSection({ store }) {
       {open && (
         <>
           <div className="row" style={{ marginTop: 10 }}>
-            <input type="text" placeholder="떠오른 생각을 적어보세요" value={content} onChange={(e) => setContent(e.target.value)} />
+            <input
+              type="text"
+              placeholder="한 줄이면 충분해요"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+            />
             <button className="btn" style={{ flex: '0 0 auto' }} onClick={submit}>저장</button>
           </div>
-          {state.ideas.length === 0 && <div className="empty-state">아이디어를 저장해보세요.</div>}
-          {state.ideas.map((i) => (
-            <div className="task-row" key={i.id}>
-              <div className="task-title">{i.title}</div>
-              <select value={i.status} onChange={(e) => updateIdea(i.id, { status: e.target.value })} style={{ width: 110 }}>
-                {IDEA_STAGES.map((s) => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
-              </select>
-              <button className="icon-btn" style={{ width: 26, height: 26, fontSize: 12 }} onClick={() => deleteIdea(i.id)}>✕</button>
-            </div>
-          ))}
+          <div className="chip-row" style={{ marginTop: 10 }}>
+            {TAG_SUGGESTIONS.map((tg) => (
+              <button
+                key={tg}
+                className={'chip' + (pendingTag === tg ? ' active' : '')}
+                onClick={() => setPendingTag((p) => (p === tg ? '' : tg))}
+              >
+                {tg}
+              </button>
+            ))}
+          </div>
+
+          <div className="chip-row" style={{ marginTop: 16 }}>
+            {IDEA_STAGES.map((s) => (
+              <button
+                key={s.id}
+                className={'chip' + (activeStage === s.id ? ' active' : '')}
+                onClick={() => setActiveStage(s.id)}
+              >
+                {s.label} {counts[s.id]}
+              </button>
+            ))}
+          </div>
+
+          {shown.length === 0 && <div className="empty-state">아직 이 단계엔 아이디어가 없어요.</div>}
+          <div className="idea-grid">
+            {shown.map((i) => {
+              const stale = i.status !== 'uploaded' && daysSince(i.createdAt) >= STALE_DAYS;
+              return (
+                <div className="idea-card" key={i.id}>
+                  <button className="del-btn" onClick={() => deleteIdea(i.id)} aria-label="삭제">✕</button>
+                  {i.capturedInFocus && <span className="badge focus">집중 중에 맡김</span>}
+                  {stale && <span className="badge stale">{daysSince(i.createdAt)}일째 쉬는 중</span>}
+                  <div className="idea-title">{i.title}</div>
+                  <div className="idea-meta">
+                    {i.tag && `${i.tag} · `}
+                    {i.createdAt ? new Date(i.createdAt).toISOString().slice(5, 10).replace('-', '월 ') + '일' : ''}
+                  </div>
+                  {i.status !== 'uploaded' && (
+                    <button className="arrow-btn" onClick={() => advance(i)} aria-label="다음 단계로">
+                      →
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
     </div>

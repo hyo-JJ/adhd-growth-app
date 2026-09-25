@@ -101,6 +101,20 @@ export function weeklyCategorySummary(state, dates) {
   return byCategory;
 }
 
+export function goalWeeklyProgress(state, goalId, dates = weekDates()) {
+  let done = 0;
+  let total = 0;
+  for (const d of dates) {
+    if (d > todayStr()) continue;
+    const routines = routinesForDate(state.routines, d).filter((r) => r.goalId === goalId);
+    for (const r of routines) {
+      total += 1;
+      if (state.completions[r.id]?.[d] != null) done += 1;
+    }
+  }
+  return { done, total };
+}
+
 export function weeklyReport(state, endDate = todayStr()) {
   const days = last7Days(endDate);
   const daily = days.map((d) => {
