@@ -1,6 +1,10 @@
 import { supabase } from './supabaseClient';
 
-async function check(res) {
+async function check(builder) {
+  // `builder` may be an already-resolved {data,error} (from Promise.all in fetchAll)
+  // or a still-pending Supabase query builder (a thenable) — awaiting it covers both,
+  // since without this the underlying HTTP request never actually fires.
+  const res = await builder;
   if (res.error) {
     console.error('[supabase]', res.error.message);
     throw res.error;

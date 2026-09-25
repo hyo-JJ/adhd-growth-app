@@ -213,7 +213,7 @@ export function StoreProvider({ children }) {
         db.wipeAll(user.id).catch(fail);
       },
 
-      importPlan({ goals = [], routines = [] }) {
+      async importPlan({ goals = [], routines = [] }) {
         for (const g of goals) {
           const goalId = makeId();
           const subGoals = (g.subGoals || []).map((sg) => ({ id: makeId(), progress: sg.progress ?? 0, done: false, title: sg.title }));
@@ -221,9 +221,14 @@ export function StoreProvider({ children }) {
             ...s,
             goals: [...s.goals, { id: goalId, title: g.title, category: g.category, deadline: g.deadline || '', subGoals }],
           }));
-          db.insertGoal(user.id, { id: goalId, title: g.title, category: g.category, deadline: g.deadline }).catch(fail);
-          for (const sg of subGoals) {
-            db.insertSubGoal(user.id, goalId, sg).catch(fail);
+          try {
+            // sub_goals has a FK on goal_id, so the parent row must exist first.
+            await db.insertGoal(user.id, { id: goalId, title: g.title, category: g.category, deadline: g.deadline });
+            for (const sg of subGoals) {
+              await db.insertSubGoal(user.id, goalId, sg);
+            }
+          } catch (err) {
+            fail(err);
           }
         }
         for (const r of routines) {
