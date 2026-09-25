@@ -1,28 +1,50 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { today, formatKorean } from '../lib/date';
-import { dayItems, dayStatus, computeStreak, weeklyReport } from '../lib/stats';
+import { dayItems, dayStatus } from '../lib/stats';
 import { getCategory } from '../lib/categories';
 import Sheet from '../components/Sheet';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import Mascot from '../components/Mascot';
+import CategoryIcon from '../components/CategoryIcon';
+import FocusMode from '../components/FocusMode';
 
-function weekdayShort(dateStr) {
-  return ['일', '월', '화', '수', '목', '금', '토'][new Date(dateStr + 'T00:00:00').getDay()];
-}
+const MOODS = [
+  { id: 'tired', label: '졸려요', face: '😪' },
+  { id: 'okay', label: '그럭저럭', face: '🙂' },
+  { id: 'great', label: '쌩쌩해요', face: '😄' },
+];
 
 export default function Home() {
-  const { state, setCompletion, clearCompletion, toggleCustomTask, addCustomTask, toggleMinimalMode } =
-    useStore();
+  const {
+    state,
+    setCompletion,
+    clearCompletion,
+    toggleCustomTask,
+    addCustomTask,
+    toggleMinimalMode,
+    addIdea,
+  } = useStore();
   const t = today();
   const minimal = !!state.minimalMode[t];
   const items = useMemo(() => dayItems(state, t), [state, t]);
   const status = useMemo(() => dayStatus(state, t), [state, t]);
-  const streak = useMemo(() => computeStreak(state, t), [state, t]);
-  const report = useMemo(() => weeklyReport(state, t), [state, t]);
 
   const [addOpen, setAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState('etc');
+  const [mood, setMood] = useState(null);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [focusItem, setFocusItem] = useState(null);
+  const [ideaOpen, setIdeaOpen] = useState(false);
+  const [ideaText, setIdeaText] = useState('');
+
+  const incomplete = items.filter((i) => !i.done);
+  useEffect(() => {
+    if (heroIndex >= incomplete.length) setHeroIndex(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomplete.length]);
+  const hero = incomplete[heroIndex] || null;
+  const rest = items.filter((i) => !(hero && i.kind === hero.kind && i.id === hero.id));
 
   function toggleRoutine(item) {
     if (item.done) {
@@ -33,6 +55,11 @@ export default function Home() {
     }
   }
 
+  function toggleItem(item) {
+    if (item.kind === 'routine') toggleRoutine(item);
+    else toggleCustomTask(item.id);
+  }
+
   function submitAdd() {
     if (!newTitle.trim()) return;
     addCustomTask({ title: newTitle.trim(), category: newCategory, date: t });
@@ -40,123 +67,152 @@ export default function Home() {
     setAddOpen(false);
   }
 
+  function submitIdea() {
+    if (!ideaText.trim()) return;
+    addIdea({ title: ideaText.trim() });
+    setIdeaText('');
+    setIdeaOpen(false);
+  }
+
   const overdueCount = state.customTasks.filter((c) => !c.done && c.carriedFrom && c.date === t).length;
+  const heroCat = hero ? getCategory(hero.category) : null;
+  const heroTarget =
+    hero && hero.kind === 'routine' ? `${minimal && hero.minTarget != null ? hero.minTarget : hero.target}${hero.unit}` : null;
 
   return (
     <>
       <div className="topbar">
-        <h1>안녕, {state.nickname} 🌷</h1>
-        <div className="sub">{formatKorean(t)}</div>
+        <div>
+          <div className="eyebrow">✦ {formatKorean(t)}</div>
+          <h1>{state.nickname}님, 오늘도 하나씩!</h1>
+        </div>
+        <button className="icon-btn" style={{ background: '#fdf0c8', fontSize: 18 }} onClick={() => setIdeaOpen(true)} aria-label="아이디어 적기">
+          💡
+        </button>
       </div>
 
       <div className="app-main" style={{ paddingTop: 4 }}>
         {overdueCount > 0 && (
-          <div className="banner">
-            🔁 밀린 일정 {overdueCount}개가 오늘로 옮겨졌어요.
+          <div className="banner">🔁 밀린 일정 {overdueCount}개가 오늘로 옮겨졌어요.</div>
+        )}
+
+        <div className="card mood-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Mascot mood={mood === 'great' ? 'happy' : mood === 'tired' ? 'shy' : 'default'} size={52} />
+            <div className="mood-prompt">지금 기분은 어때요?</div>
+          </div>
+          <div className="mood-btn-row">
+            {MOODS.map((m) => (
+              <button
+                key={m.id}
+                className={'mood-btn' + (mood === m.id ? ' selected' : '')}
+                onClick={() => setMood(m.id)}
+              >
+                <span className="face">{m.face}</span>
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {hero ? (
+          <div className="hero-card">
+            <div className="hero-top">
+              <span className="hero-eyebrow">✦ 지금 할 것 하나</span>
+              <span className="hero-cat-badge">
+                {heroCat.emoji} {heroCat.label}
+              </span>
+            </div>
+            <div className="hero-title">{hero.title}</div>
+            <div className="hero-sub">
+              {heroTarget ? `${heroTarget} · 시작만 해도 충분해요` : '오늘 할 일 · 시작만 해도 충분해요'}
+            </div>
+            <div className="hero-actions">
+              <button className="hero-start-btn" onClick={() => setFocusItem(hero)}>
+                ▶ 5분만 시작하기
+              </button>
+              {incomplete.length > 1 && (
+                <button
+                  className="hero-swap-btn"
+                  onClick={() => setHeroIndex((i) => (i + 1) % incomplete.length)}
+                  aria-label="다른 할 일 보기"
+                >
+                  ⇄
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="hero-card hero-empty">
+            <Mascot mood="happy" size={48} />
+            <div className="hero-title" style={{ marginTop: 8 }}>
+              {items.length === 0 ? '오늘 등록된 할 일이 없어요' : '오늘 할 일을 다 끝냈어요!'}
+            </div>
+            <div className="hero-sub">
+              {items.length === 0 ? 'MY 탭에서 루틴을 추가해보세요' : '작은 하나하나가 모여 큰 변화가 돼요'}
+            </div>
           </div>
         )}
 
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <h2 style={{ margin: 0 }}>오늘의 성장 {status.rate}%</h2>
-            {streak > 0 && <span className="tag">🔥 {streak}일 연속</span>}
+        <div className="busy-row">
+          <div className="busy-icon">☕</div>
+          <div className="busy-text">
+            <div className="busy-title">오늘 너무 바빠요</div>
+            <div className="busy-sub">최소 행동만 남겨 드릴게요</div>
           </div>
-          <div style={{ height: 10 }} />
-          <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${status.rate}%` }} />
-          </div>
-          <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-dim)' }}>
-            {status.doneCount} / {status.totalCount} 완료
-          </div>
+          <button className={'switch' + (minimal ? ' on' : '')} onClick={() => toggleMinimalMode(t)}>
+            <span className="knob" />
+          </button>
         </div>
 
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>🎯 오늘 할 일</h3>
-            <button
-              className={'btn secondary'}
-              style={{ fontSize: 12, padding: '7px 10px' }}
-              onClick={() => toggleMinimalMode(t)}
-            >
-              {minimal ? '✅ 최소 루틴 적용중' : '오늘 너무 바빠'}
-            </button>
-          </div>
+        {items.length > 0 && (
+          <>
+            <div className="section-header-row">
+              <h3>그다음 할 일</h3>
+              <span className="count-pill">
+                오늘 {status.doneCount}/{status.totalCount} 완료
+              </span>
+            </div>
+            <div className="leaf-dots">
+              {items.map((_, idx) => (
+                <span key={idx} className={'leaf-dot' + (idx < status.doneCount ? ' done' : '')}>
+                  {idx < status.doneCount ? '🌿' : ''}
+                </span>
+              ))}
+            </div>
 
-          {items.length === 0 && (
-            <div className="empty-state">오늘 등록된 루틴이 없어요. MY 탭에서 루틴을 추가해보세요.</div>
-          )}
-
-          {items.map((item) => {
-            const cat = getCategory(item.category);
-            const targetLabel =
-              item.kind === 'routine'
-                ? `${minimal && item.minTarget != null ? item.minTarget : item.target}${item.unit}`
-                : null;
-            return (
-              <div className="task-row" key={item.kind + item.id}>
-                <button
-                  className={'checkbox' + (item.done ? ' done' : '')}
-                  onClick={() => (item.kind === 'routine' ? toggleRoutine(item) : toggleCustomTask(item.id))}
-                  aria-label="완료 체크"
-                >
-                  {item.done ? '✓' : ''}
-                </button>
-                <div className="task-title">
-                  <span className={item.done ? 'done-text' : ''}>
-                    {cat.emoji} {item.title}
-                  </span>
-                  {item.carriedFrom && <div className="task-meta">밀린 일정에서 이동됨</div>}
+            {rest.map((item) => {
+              const cat = getCategory(item.category);
+              const targetLabel =
+                item.kind === 'routine'
+                  ? `${cat.label} · ${minimal && item.minTarget != null ? item.minTarget : item.target}${item.unit}`
+                  : cat.label;
+              const promote = () => {
+                if (item.done) return;
+                const idx = incomplete.findIndex((i) => i.kind === item.kind && i.id === item.id);
+                if (idx !== -1) setHeroIndex(idx);
+              };
+              return (
+                <div className={'task-row' + (item.done ? ' done-row' : '')} key={item.kind + item.id}>
+                  <CategoryIcon id={item.category} />
+                  <div className="task-title" onClick={promote} style={{ cursor: item.done ? 'default' : 'pointer' }}>
+                    <span className={item.done ? 'done-text' : ''}>{item.title}</span>
+                    <div className="task-meta">{targetLabel}</div>
+                    {item.carriedFrom && <div className="task-meta">밀린 일정에서 이동됨</div>}
+                  </div>
+                  <button className={'checkbox' + (item.done ? ' done' : '')} onClick={() => toggleItem(item)} aria-label="완료 체크">
+                    {item.done ? '✓' : ''}
+                  </button>
                 </div>
-                {targetLabel && <span className="tag">{targetLabel}</span>}
-              </div>
-            );
-          })}
+              );
+            })}
+          </>
+        )}
 
-          <div style={{ marginTop: 12 }}>
-            <button className="btn secondary block" onClick={() => setAddOpen(true)}>
-              + 오늘 할 일 추가
-            </button>
-          </div>
-        </div>
-
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>📊 이번 주 리포트</h3>
-          <div className="stat-grid" style={{ marginBottom: 14 }}>
-            <div className="stat-tile">
-              <div className="val">{Math.floor(report.studyMinutes / 60)}h {report.studyMinutes % 60}m</div>
-              <div className="lab">공부+개발 시간</div>
-            </div>
-            <div className="stat-tile">
-              <div className="val">{report.exerciseCount}</div>
-              <div className="lab">운동 누적</div>
-            </div>
-            <div className="stat-tile">
-              <div className="val">{streak}일</div>
-              <div className="lab">연속 성장</div>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={140}>
-            <BarChart data={report.daily} margin={{ left: -20, right: 4, top: 4, bottom: 0 }}>
-              <XAxis
-                dataKey="date"
-                tickFormatter={weekdayShort}
-                tick={{ fontSize: 12, fill: 'var(--text-dim)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis hide domain={[0, 100]} />
-              <Tooltip
-                formatter={(v) => [`${v}%`, '완료율']}
-                labelFormatter={(d) => formatKorean(d)}
-                contentStyle={{ fontSize: 12, borderRadius: 10 }}
-              />
-              <Bar dataKey="rate" radius={[6, 6, 6, 6]}>
-                {report.daily.map((d, idx) => (
-                  <Cell key={idx} fill={d.date === t ? '#5b6ee1' : '#c7cdf5'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        <div style={{ marginTop: 12 }}>
+          <button className="btn secondary block" onClick={() => setAddOpen(true)}>
+            + 오늘 할 일 추가
+          </button>
         </div>
       </div>
 
@@ -191,6 +247,32 @@ export default function Home() {
           추가하기
         </button>
       </Sheet>
+
+      <Sheet open={ideaOpen} onClose={() => setIdeaOpen(false)} title="💡 새 아이디어 톡!">
+        <div className="field">
+          <input
+            type="text"
+            value={ideaText}
+            onChange={(e) => setIdeaText(e.target.value)}
+            placeholder="한 줄이면 충분해요"
+            autoFocus
+            onKeyDown={(e) => e.key === 'Enter' && submitIdea()}
+          />
+        </div>
+        <div style={{ height: 14 }} />
+        <button className="btn block" onClick={submitIdea}>
+          저장하고 할 일로 돌아가기
+        </button>
+      </Sheet>
+
+      {focusItem && (
+        <FocusMode
+          item={focusItem}
+          onClose={() => setFocusItem(null)}
+          onComplete={() => toggleItem(focusItem)}
+          onParkIdea={(text) => addIdea({ title: text })}
+        />
+      )}
     </>
   );
 }

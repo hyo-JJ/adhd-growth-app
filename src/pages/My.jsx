@@ -146,6 +146,7 @@ function RoutineForm({ initial, onSubmit }) {
   const [amount, setAmount] = useState(initial?.amount ?? '');
   const [minAmount, setMinAmount] = useState(initial?.minAmount ?? '');
   const [unit, setUnit] = useState(initial?.unit || '분');
+  const [stepsText, setStepsText] = useState((initial?.steps || []).join('\n'));
 
   function toggleDay(d) {
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
@@ -185,6 +186,12 @@ function RoutineForm({ initial, onSubmit }) {
       </div>
       <label>최소 루틴 목표량 (선택, "오늘 너무 바빠"용)</label>
       <input type="number" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} placeholder="10" />
+      <label>✂ 작은 단계 (선택, 집중 모드에서 보여줘요)</label>
+      <textarea
+        value={stepsText}
+        onChange={(e) => setStepsText(e.target.value)}
+        placeholder={'한 줄에 하나씩 적어주세요\n예: 단어장 Day 12 열기\n1~10번 소리 내어 읽기'}
+      />
       <div style={{ height: 16 }} />
       <button
         className="btn block"
@@ -197,6 +204,10 @@ function RoutineForm({ initial, onSubmit }) {
             amount: Number(amount) || 0,
             minAmount: minAmount === '' ? null : Number(minAmount),
             unit,
+            steps: stepsText
+              .split('\n')
+              .map((s) => s.trim())
+              .filter(Boolean),
           })
         }
       >

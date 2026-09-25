@@ -60,6 +60,7 @@ export async function fetchAll(userId) {
       amount: Number(r.amount),
       minAmount: r.min_amount == null ? null : Number(r.min_amount),
       unit: r.unit,
+      steps: r.steps || null,
     })),
     completions: completionsMap,
     customTasks: (await check(customTasks)).map((t) => ({
@@ -146,6 +147,7 @@ export const db = {
         amount: routine.amount,
         min_amount: routine.minAmount,
         unit: routine.unit,
+        steps: routine.steps || null,
       })
     ),
   updateRoutine: (id, patch) =>
@@ -159,6 +161,7 @@ export const db = {
           ...(patch.amount !== undefined && { amount: patch.amount }),
           ...(patch.minAmount !== undefined && { min_amount: patch.minAmount }),
           ...(patch.unit !== undefined && { unit: patch.unit }),
+          ...(patch.steps !== undefined && { steps: patch.steps }),
         })
         .eq('id', id)
     ),

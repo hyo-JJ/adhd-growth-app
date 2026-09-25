@@ -16,6 +16,7 @@ export function dayItems(state, dateStr) {
       unit: r.unit,
       target: r.amount,
       minTarget: r.minAmount,
+      steps: r.steps || null,
       done: amountDone != null,
       amountDone: amountDone || 0,
     };
@@ -60,6 +61,44 @@ export function computeStreak(state, fromDate = todayStr()) {
     }
   }
   return streak;
+}
+
+export function weekDates(fromDate = todayStr()) {
+  const wd = weekday(fromDate);
+  const mondayOffset = wd === 0 ? -6 : 1 - wd;
+  const monday = addDays(fromDate, mondayOffset);
+  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+}
+
+export function dailyFocusMinutes(state, dates) {
+  return dates.map((d) => {
+    const routines = routinesForDate(state.routines, d);
+    let minutes = 0;
+    for (const r of routines) {
+      if (r.unit !== '분') continue;
+      const amt = state.completions[r.id]?.[d];
+      if (amt != null) minutes += amt;
+    }
+    return { date: d, minutes };
+  });
+}
+
+export function weeklyCategorySummary(state, dates) {
+  const byCategory = {};
+  for (const d of dates) {
+    const routines = routinesForDate(state.routines, d);
+    for (const r of routines) {
+      const amt = state.completions[r.id]?.[d];
+      if (amt == null) continue;
+      const bucket = byCategory[r.category] || { minutes: 0, otherTotal: 0, unit: r.unit, days: new Set() };
+      if (r.unit === '분') bucket.minutes += amt;
+      else bucket.otherTotal += amt;
+      bucket.unit = r.unit;
+      bucket.days.add(d);
+      byCategory[r.category] = bucket;
+    }
+  }
+  return byCategory;
 }
 
 export function weeklyReport(state, endDate = todayStr()) {

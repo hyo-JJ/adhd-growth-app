@@ -41,6 +41,7 @@ create table if not exists routines (
   amount numeric not null default 0,
   min_amount numeric,
   unit text not null default '',
+  steps text[],
   created_at timestamptz not null default now()
 );
 
