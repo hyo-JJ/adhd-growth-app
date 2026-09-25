@@ -7,6 +7,7 @@ create extension if not exists "pgcrypto";
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   nickname text not null default '나',
+  username text unique,
   created_at timestamptz not null default now()
 );
 
@@ -154,8 +155,12 @@ create policy "own profile" on profiles for all using (auth.uid() = id) with che
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, nickname)
-  values (new.id, coalesce(new.raw_user_meta_data->>'nickname', '나'))
+  insert into public.profiles (id, nickname, username)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'nickname', '나'),
+    new.raw_user_meta_data->>'username'
+  )
   on conflict (id) do nothing;
   return new;
 end;

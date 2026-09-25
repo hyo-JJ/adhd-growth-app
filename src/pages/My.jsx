@@ -65,7 +65,9 @@ export default function My() {
 
         <div className="card">
           <h3 style={{ marginTop: 0 }}>계정</h3>
-          <div className="task-meta" style={{ marginBottom: 10 }}>{user?.email}</div>
+          <div className="task-meta" style={{ marginBottom: 10 }}>
+            아이디: {user?.user_metadata?.username || '-'}
+          </div>
           <button className="btn secondary block" onClick={() => signOut()}>
             로그아웃
           </button>

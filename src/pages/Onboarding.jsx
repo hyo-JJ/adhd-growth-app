@@ -24,17 +24,11 @@ const EXAMPLE_PLAN = {
 };
 
 export default function Onboarding({ onDone }) {
-  const { setNickname, importPlan } = useStore();
-  const [step, setStep] = useState('start'); // start | prompt | paste | preview
-  const [nick, setNick] = useState('');
+  const { state, importPlan } = useStore();
+  const [step, setStep] = useState('prompt'); // prompt | paste | preview
   const [pasted, setPasted] = useState('');
   const [parsed, setParsed] = useState(null);
   const [copied, setCopied] = useState(false);
-
-  function saveNickAndGo(next) {
-    if (nick.trim()) setNickname(nick.trim());
-    setStep(next);
-  }
 
   async function copyPrompt() {
     try {
@@ -65,26 +59,12 @@ export default function Onboarding({ onDone }) {
             나중에 할게요 →
           </button>
         </div>
-        {step === 'start' && (
-          <>
-            <div style={{ textAlign: 'center', margin: '30px 0 20px' }}>
-              <div style={{ fontSize: 36 }}>👋</div>
-              <h1 style={{ margin: '10px 0 4px' }}>반가워요!</h1>
-              <div className="sub">먼저 어떻게 불러드리면 좋을지 알려주세요</div>
-            </div>
-            <div className="card">
-              <label style={{ marginTop: 0 }}>닉네임</label>
-              <input type="text" value={nick} onChange={(e) => setNick(e.target.value)} placeholder="예: 효도리" autoFocus />
-              <div style={{ height: 16 }} />
-              <button className="btn block" onClick={() => saveNickAndGo('prompt')} disabled={!nick.trim()}>
-                다음
-              </button>
-            </div>
-          </>
-        )}
-
         {step === 'prompt' && (
           <>
+            <div style={{ textAlign: 'center', margin: '20px 0 16px' }}>
+              <div style={{ fontSize: 36 }}>👋</div>
+              <h1 style={{ margin: '10px 0 4px' }}>반가워요, {state.nickname}님!</h1>
+            </div>
             <div className="topbar" style={{ padding: 0, marginBottom: 10 }}>
               <h1>내 목표, AI랑 같이 정리하기</h1>
               <div className="sub">평소에 자주 쓰는 AI(챗지피티, 클로드 등)에게 아래 프롬프트를 붙여넣고 몇 가지 질문에 답해보세요.</div>
