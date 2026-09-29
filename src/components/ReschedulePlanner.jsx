@@ -52,7 +52,7 @@ export default function ReschedulePlanner({ tasks, updateCustomTask, deleteCusto
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-          <Mascot mood="love" size={56} />
+          <Mascot pose="back" size={56} />
           <div>
             <div style={{ fontWeight: 800, fontSize: 18 }}>괜찮아요! 다시 작게 나눠 볼게요</div>
           </div>

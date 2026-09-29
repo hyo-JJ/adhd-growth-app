@@ -127,7 +127,7 @@ export default function Home() {
 
         <div className="card mood-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Mascot mood={savedJournal ? 'happy' : 'default'} size={52} />
+            <Mascot pose={savedJournal ? 'heart' : 'wave'} size={52} />
             <div className="mood-prompt">오늘을 마무리하며 한 줄 일기</div>
           </div>
           {savedJournal && !journalEditing ? (
@@ -184,7 +184,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="hero-card hero-empty">
-            <Mascot mood="happy" size={48} />
+            <Mascot pose={items.length === 0 ? 'lying' : 'heart'} size={64} />
             <div className="hero-title" style={{ marginTop: 8 }}>
               {items.length === 0 ? '오늘 등록된 할 일이 없어요' : '오늘 할 일을 다 끝냈어요!'}
             </div>

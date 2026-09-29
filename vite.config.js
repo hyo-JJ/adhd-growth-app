@@ -11,7 +11,7 @@ export default defineConfig(({ command }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+        includeAssets: ['favicon.png', 'apple-touch-icon.png'],
         manifest: {
           id: base,
           name: '오늘 하나 · 성장관리',
@@ -30,7 +30,7 @@ export default defineConfig(({ command }) => {
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+          globPatterns: ['**/*.{js,css,html,svg,png,webp,ico}'],
         },
       }),
     ],

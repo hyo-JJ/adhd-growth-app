@@ -42,7 +42,7 @@ function WeeklyReport({ state }) {
       <h2 style={{ margin: '0 0 14px' }}>이번 주 7일 중 {movedDays}일 움직였어요</h2>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-2)', borderRadius: 14, padding: 14, marginBottom: 16 }}>
-        <Mascot mood="happy" size={44} />
+        <Mascot pose="main" size={48} />
         <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>
           연속 기록이 끊겨도 괜찮아요. 쌓인 날에 꽃 도장을 찍어 드릴게요.
         </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Mascot from '../components/Mascot';
 import { useAuth } from '../context/AuthContext';
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
@@ -49,7 +50,7 @@ export default function Login() {
     <div className="app-shell" style={{ justifyContent: 'center' }}>
       <div className="app-main" style={{ paddingBottom: 40 }}>
         <div style={{ textAlign: 'center', margin: '40px 0 24px' }}>
-          <div style={{ fontSize: 40 }}>🌱</div>
+          <Mascot pose="main" size={96} className="mascot-center" />
           <h1 style={{ margin: '10px 0 4px' }}>오늘 하나</h1>
           <div className="sub">여러 목표를 오늘 하나로 연결하는 성장관리 앱</div>
         </div>

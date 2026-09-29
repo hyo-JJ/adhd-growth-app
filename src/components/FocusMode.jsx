@@ -11,7 +11,7 @@ const POMO_LONG = 15 * 60;
 const POMO_CYCLES = 4;
 
 const PHASE_LABEL = { work: '집중 시간', short: '짧은 휴식', long: '긴 휴식' };
-const PHASE_MOOD = { work: 'focus', short: 'shy', long: 'happy' };
+const PHASE_POSE = { work: 'reading', short: 'lying', long: 'heart' };
 
 function formatClock(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
@@ -84,7 +84,7 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
   const remainingFraction = phaseSeconds === 0 ? 0 : remaining / phaseSeconds;
   const dashoffset = CIRC * (1 - remainingFraction);
   const ringColor = !pomodoro || phase === 'work' ? 'var(--hero-2)' : 'var(--success)';
-  const mascotMood = paused ? 'shy' : pomodoro ? PHASE_MOOD[phase] : 'focus';
+  const mascotPose = paused ? 'lying' : pomodoro ? PHASE_POSE[phase] : 'reading';
 
   const currentStepIndex = stepDone.findIndex((d) => !d);
 
@@ -180,7 +180,7 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
                   gap: 4,
                 }}
               >
-                <Mascot mood={mascotMood} size={44} />
+                <Mascot pose={mascotPose} size={44} />
                 <div style={{ fontSize: 30, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
                   {formatClock(remaining)}
                 </div>

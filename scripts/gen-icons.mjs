@@ -1,38 +1,35 @@
+// scripts/source-icons 의 토끼 일러스트로 앱 아이콘과 화면용 마스코트 이미지를 만든다.
+// 실행: npm i --no-save sharp && node scripts/gen-icons.mjs
 import sharp from 'sharp';
 import { mkdirSync } from 'fs';
 
+const SRC = 'scripts/source-icons';
 const BG = '#FDF1E6';
 
-// mascot centered in a 512x512 canvas, scaled up from the 104x104 viewBox used in Mascot.jsx
-function mascotSvg(size, { padding = 0 } = {}) {
+// 정사각형 배경 위에 main_icon을 padding만큼 여백을 두고 가운데 배치
+async function appIcon(file, size, padding, background = BG) {
   const inner = size - padding * 2;
-  const scale = inner / 104;
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${size}" height="${size}" fill="${BG}"/>
-    <g transform="translate(${padding}, ${padding}) scale(${scale})">
-      <circle cx="52" cy="60" r="40" fill="#FBDDBB" />
-      <path d="M52 22c0-8 6-14 6-14s-10-1-13 6c-1-6-9-9-9-9s0 9 6 13c-4 1-7 5-7 5s9 3 14-1z" fill="#5FAE6E" />
-      <circle cx="30" cy="66" r="6" fill="#F5A98B" opacity="0.7" />
-      <circle cx="74" cy="66" r="6" fill="#F5A98B" opacity="0.7" />
-      <path d="M36 56q5-6 10 0" stroke="#3a2e27" stroke-width="3" stroke-linecap="round" fill="none" />
-      <path d="M58 56q5-6 10 0" stroke="#3a2e27" stroke-width="3" stroke-linecap="round" fill="none" />
-      <path d="M42 68q10 10 20 0" stroke="#3a2e27" stroke-width="3.2" stroke-linecap="round" fill="none" />
-    </g>
-  </svg>`;
+  const art = await sharp(`${SRC}/main_icon.png`)
+    .resize(inner, inner, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .toBuffer();
+  await sharp({ create: { width: size, height: size, channels: 4, background } })
+    .composite([{ input: art, gravity: 'center' }])
+    .png()
+    .toFile(file);
+  console.log('wrote', file);
 }
 
 mkdirSync('public/icons', { recursive: true });
+await appIcon('public/icons/icon-192.png', 192, 12);
+await appIcon('public/icons/icon-512.png', 512, 32);
+await appIcon('public/icons/maskable-512.png', 512, 96); // maskable safe zone
+await appIcon('public/apple-touch-icon.png', 180, 14);
+await appIcon('public/favicon.png', 64, 0, { r: 0, g: 0, b: 0, alpha: 0 });
 
-const jobs = [
-  { file: 'public/icons/icon-192.png', size: 192, padding: 0 },
-  { file: 'public/icons/icon-512.png', size: 512, padding: 0 },
-  { file: 'public/icons/maskable-512.png', size: 512, padding: 90 }, // extra padding = safe zone for maskable
-  { file: 'public/apple-touch-icon.png', size: 180, padding: 10 },
-];
-
-for (const job of jobs) {
-  await sharp(Buffer.from(mascotSvg(job.size, { padding: job.padding })))
-    .png()
-    .toFile(job.file);
-  console.log('wrote', job.file);
+// 화면에서는 최대 ~120px로 쓰므로 레티나 기준 높이 240px webp로 줄여서 번들 크기를 아낀다.
+mkdirSync('src/assets/mascot', { recursive: true });
+for (const name of ['main_icon', 'icon_wave', 'icon_heart', 'icon_reading', 'icon_lying', 'icon_back']) {
+  const out = `src/assets/mascot/${name.replace(/^icon_/, '')}.webp`;
+  await sharp(`${SRC}/${name}.png`).resize({ height: 240 }).webp({ quality: 88 }).toFile(out);
+  console.log('wrote', out);
 }

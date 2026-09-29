@@ -163,6 +163,12 @@ button {
 .mascot {
   flex-shrink: 0;
   display: block;
+  object-fit: contain;
+  user-select: none;
+}
+
+.mascot-center {
+  margin: 0 auto;
 }
 
 /* mood check-in */

@@ -115,7 +115,7 @@ export default function Goals() {
               <div className="card" style={{ background: 'var(--accent-soft)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ display: 'flex', gap: 12 }}>
-                    <Mascot mood="default" size={40} />
+                    <Mascot pose="reading" size={44} />
                     <div>
                       <div className="task-meta" style={{ color: 'var(--accent)', fontWeight: 700 }}>
                         큰 목표 {goal.deadline ? `· ${goal.deadline}까지` : ''}
