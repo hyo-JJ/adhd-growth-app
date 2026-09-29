@@ -102,6 +102,15 @@ create table if not exists minimal_days (
   primary key (user_id, date)
 );
 
+-- 한 줄 일기 (하루에 한 줄)
+create table if not exists journals (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  text text not null,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, date)
+);
+
 -- Row Level Security: 각자 자기 데이터만 보고 쓸 수 있게 제한
 alter table profiles enable row level security;
 alter table goals enable row level security;
@@ -112,6 +121,7 @@ alter table custom_tasks enable row level security;
 alter table projects enable row level security;
 alter table ideas enable row level security;
 alter table minimal_days enable row level security;
+alter table journals enable row level security;
 
 do $$
 declare
@@ -119,7 +129,7 @@ declare
 begin
   for t in select unnest(array[
     'goals', 'sub_goals', 'routines', 'completions', 'custom_tasks',
-    'projects', 'ideas', 'minimal_days'
+    'projects', 'ideas', 'minimal_days', 'journals'
   ])
   loop
     execute format('drop policy if exists "own rows" on %I', t);

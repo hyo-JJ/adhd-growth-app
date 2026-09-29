@@ -154,6 +154,16 @@ export function StoreProvider({ children }) {
         db.setMinimalDay(user.id, date, next).catch(fail);
       },
 
+      setJournal(date, text) {
+        setState((s) => {
+          const j = { ...s.journals };
+          if (text) j[date] = text;
+          else delete j[date];
+          return { ...s, journals: j };
+        });
+        db.setJournal(user.id, date, text).catch(fail);
+      },
+
       addProject(project) {
         const id = makeId();
         const full = { id, stage: 'idea', ...project };

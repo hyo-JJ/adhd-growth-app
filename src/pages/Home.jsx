@@ -9,12 +9,6 @@ import CategoryIcon from '../components/CategoryIcon';
 import FocusMode from '../components/FocusMode';
 import ReschedulePlanner from '../components/ReschedulePlanner';
 
-const MOODS = [
-  { id: 'tired', label: '졸려요', face: '😪' },
-  { id: 'okay', label: '그럭저럭', face: '🙂' },
-  { id: 'great', label: '쌩쌩해요', face: '😄' },
-];
-
 export default function Home() {
   const {
     state,
@@ -26,6 +20,7 @@ export default function Home() {
     deleteCustomTask,
     toggleMinimalMode,
     addIdea,
+    setJournal,
   } = useStore();
   const t = today();
   const minimal = !!state.minimalMode[t];
@@ -38,7 +33,9 @@ export default function Home() {
   const [newMinutes, setNewMinutes] = useState('');
   const [newTime, setNewTime] = useState('');
   const [newRequired, setNewRequired] = useState(true);
-  const [mood, setMood] = useState(null);
+  const savedJournal = state.journals[t] || '';
+  const [journalDraft, setJournalDraft] = useState('');
+  const [journalEditing, setJournalEditing] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
   const [focusItem, setFocusItem] = useState(null);
   const [ideaOpen, setIdeaOpen] = useState(false);
@@ -91,6 +88,18 @@ export default function Home() {
     setIdeaOpen(false);
   }
 
+  function submitJournal() {
+    const text = journalDraft.trim();
+    if (!text) return;
+    setJournal(t, text);
+    setJournalEditing(false);
+  }
+
+  function editJournal() {
+    setJournalDraft(savedJournal);
+    setJournalEditing(true);
+  }
+
   const overdueTasks = state.customTasks.filter((c) => !c.done && c.date < t);
   const heroCat = hero ? getCategory(hero.category) : null;
   const overLimit = state.dailyMaxTasks != null && items.length > state.dailyMaxTasks;
@@ -118,21 +127,31 @@ export default function Home() {
 
         <div className="card mood-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Mascot mood={mood === 'great' ? 'happy' : mood === 'tired' ? 'shy' : 'default'} size={52} />
-            <div className="mood-prompt">지금 기분은 어때요?</div>
+            <Mascot mood={savedJournal ? 'happy' : 'default'} size={52} />
+            <div className="mood-prompt">오늘을 마무리하며 한 줄 일기</div>
           </div>
-          <div className="mood-btn-row">
-            {MOODS.map((m) => (
-              <button
-                key={m.id}
-                className={'mood-btn' + (mood === m.id ? ' selected' : '')}
-                onClick={() => setMood(m.id)}
-              >
-                <span className="face">{m.face}</span>
-                {m.label}
+          {savedJournal && !journalEditing ? (
+            <div className="journal-saved">
+              <div className="journal-text">{savedJournal}</div>
+              <button className="btn secondary" onClick={editJournal}>
+                수정
               </button>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="journal-input-row">
+              <input
+                type="text"
+                value={journalDraft}
+                onChange={(e) => setJournalDraft(e.target.value)}
+                placeholder="오늘 어땠나요? 한 줄이면 충분해요"
+                maxLength={200}
+                onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && submitJournal()}
+              />
+              <button className="btn" onClick={submitJournal} disabled={!journalDraft.trim()}>
+                저장
+              </button>
+            </div>
+          )}
         </div>
 
         {hero ? (

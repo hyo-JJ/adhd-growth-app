@@ -6,7 +6,7 @@
 ## 1. Supabase 프로젝트 만들기
 
 1. [supabase.com](https://supabase.com) 에서 무료 프로젝트를 하나 생성한다.
-2. 좌측 메뉴 **SQL Editor** 에서 이 저장소의 `supabase/schema.sql` 내용을 전체 붙여넣고 실행한다. (테이블 + 보안 정책이 자동으로 만들어짐). 이미 예전 버전 스키마로 쓰고 있었다면 `supabase/schema.sql` 대신 `supabase/migrations/` 안의 파일을 번호 순서대로 실행한다 (`003_generic_categories.sql`: 카테고리 변경 + 시간/필수 여부/하루 최대 할 일 수 컬럼 추가).
+2. 좌측 메뉴 **SQL Editor** 에서 이 저장소의 `supabase/schema.sql` 내용을 전체 붙여넣고 실행한다. (테이블 + 보안 정책이 자동으로 만들어짐). 이미 예전 버전 스키마로 쓰고 있었다면 `supabase/schema.sql` 대신 `supabase/migrations/` 안의 파일을 번호 순서대로 실행한다 (`003_generic_categories.sql`: 카테고리 변경 + 시간/필수 여부/하루 최대 할 일 수 컬럼 추가, `004_journals.sql`: 한 줄 일기 테이블 추가).
 3. **Authentication → Providers → Email** 에서 **"Confirm email"을 반드시 끈다.**
    - 이 앱은 진짜 이메일이 아니라 `아이디@onulhana.com` 형태의 가짜 이메일로 Supabase Auth를 흉내 낸다. Confirm email이 켜져 있으면 존재하지 않는 주소로 확인 메일을 보내려다 실패하고, Supabase 무료 티어의 이메일 발송 제한(시간당 몇 통 수준)에 금방 걸려 `429 over_email_send_rate_limit` 에러가 난다.
 4. **Authentication → URL Configuration** 에서 Site URL에 배포될 주소를 추가한다 (선택 사항이지만 권장).

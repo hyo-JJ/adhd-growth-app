@@ -13,7 +13,7 @@ async function check(builder) {
 }
 
 export async function fetchAll(userId) {
-  const [profile, goals, subGoals, routines, completions, customTasks, projects, ideas, minimalDays] =
+  const [profile, goals, subGoals, routines, completions, customTasks, projects, ideas, minimalDays, journals] =
     await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       supabase.from('goals').select('*').eq('user_id', userId).order('created_at'),
@@ -24,6 +24,7 @@ export async function fetchAll(userId) {
       supabase.from('projects').select('*').eq('user_id', userId).order('created_at'),
       supabase.from('ideas').select('*').eq('user_id', userId).order('created_at'),
       supabase.from('minimal_days').select('*').eq('user_id', userId),
+      supabase.from('journals').select('*').eq('user_id', userId),
     ]);
 
   const profileData = await check(profile);
@@ -50,6 +51,11 @@ export async function fetchAll(userId) {
   const minimalRows = await check(minimalDays);
   const minimalMode = {};
   for (const m of minimalRows) minimalMode[m.date] = true;
+
+  // journals 마이그레이션(004)을 아직 안 돌렸어도 앱 전체가 멈추지 않게 한다.
+  const journalMap = {};
+  if (journals.error) console.error('[supabase]', journals.error.message);
+  for (const j of journals.data || []) journalMap[j.date] = j.text;
 
   return {
     nickname: profileData?.nickname || '나',
@@ -90,6 +96,7 @@ export async function fetchAll(userId) {
       createdAt: i.created_at,
     })),
     minimalMode,
+    journals: journalMap,
   };
 }
 
@@ -257,7 +264,7 @@ export const db = {
 
   wipeAll: (userId) =>
     Promise.all(
-      ['goals', 'routines', 'custom_tasks', 'projects', 'ideas', 'minimal_days'].map((t) =>
+      ['goals', 'routines', 'custom_tasks', 'projects', 'ideas', 'minimal_days', 'journals'].map((t) =>
         check(supabase.from(t).delete().eq('user_id', userId))
       )
     ),
@@ -266,4 +273,13 @@ export const db = {
     active
       ? check(supabase.from('minimal_days').upsert({ user_id: userId, date }, { onConflict: 'user_id,date' }))
       : check(supabase.from('minimal_days').delete().eq('user_id', userId).eq('date', date)),
+
+  setJournal: (userId, date, text) =>
+    text
+      ? check(
+          supabase
+            .from('journals')
+            .upsert({ user_id: userId, date, text, updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' })
+        )
+      : check(supabase.from('journals').delete().eq('user_id', userId).eq('date', date)),
 };

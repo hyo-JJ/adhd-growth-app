@@ -19,5 +19,6 @@ export function blankState() {
     projects: [],
     ideas: [],
     minimalMode: {},
+    journals: {},
   };
 }

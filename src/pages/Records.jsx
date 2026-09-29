@@ -143,6 +143,11 @@ export default function Records() {
     return items.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 20);
   }, [state.completions, state.customTasks, routines]);
 
+  const journalEntries = useMemo(
+    () => Object.entries(state.journals).sort((a, b) => (a[0] < b[0] ? 1 : -1)),
+    [state.journals]
+  );
+
   return (
     <>
       <div className="topbar">
@@ -151,6 +156,17 @@ export default function Records() {
       </div>
       <div className="app-main" style={{ paddingTop: 4 }}>
         <WeeklyReport state={state} />
+
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>한 줄 일기</h3>
+          {journalEntries.length === 0 && <div className="empty-state">홈에서 오늘을 마무리하며 한 줄 적어보세요.</div>}
+          {journalEntries.map(([date, text]) => (
+            <div className="task-row plain" key={date}>
+              <div className="task-title" style={{ fontWeight: 500 }}>{text}</div>
+              <span className="task-meta" style={{ flexShrink: 0 }}>{date.slice(5).replace('-', '/')}</span>
+            </div>
+          ))}
+        </div>
 
         <div className="card">
           <label style={{ marginTop: 0 }}>기록할 날짜</label>
