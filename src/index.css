@@ -1231,3 +1231,32 @@ label {
   cursor: pointer;
   padding: 2px;
 }
+
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 448px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  z-index: 100;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.update-banner span {
+  flex: 1;
+}
+
+.update-banner .btn {
+  padding: 8px 12px;
+  font-size: 14px;
+}

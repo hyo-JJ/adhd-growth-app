@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { supabaseConfigured } from './lib/supabaseClient';
 import NavBar from './components/NavBar';
+import UpdateBanner from './components/UpdateBanner';
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
 import Home from './pages/Home';
@@ -84,11 +85,17 @@ function AuthGate() {
 }
 
 function App() {
-  if (!supabaseConfigured) return <SetupNeeded />;
   return (
-    <AuthProvider>
-      <AuthGate />
-    </AuthProvider>
+    <>
+      {supabaseConfigured ? (
+        <AuthProvider>
+          <AuthGate />
+        </AuthProvider>
+      ) : (
+        <SetupNeeded />
+      )}
+      <UpdateBanner />
+    </>
   );
 }
 

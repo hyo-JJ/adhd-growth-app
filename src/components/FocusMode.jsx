@@ -25,6 +25,7 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
   const totalSeconds = totalMinutes * 60;
 
   const [remaining, setRemaining] = useState(totalSeconds);
+  const [started, setStarted] = useState(false);
   const [paused, setPaused] = useState(false);
   const [pomodoro, setPomodoro] = useState(false);
   const [phase, setPhase] = useState('work');
@@ -36,12 +37,12 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    if (paused) return;
+    if (!started || paused) return;
     intervalRef.current = setInterval(() => {
       setRemaining((r) => (r > 0 ? r - 1 : 0));
     }, 1000);
     return () => clearInterval(intervalRef.current);
-  }, [paused]);
+  }, [started, paused]);
 
   // auto-advance through pomodoro work/break phases when the clock hits zero
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
   const remainingFraction = phaseSeconds === 0 ? 0 : remaining / phaseSeconds;
   const dashoffset = CIRC * (1 - remainingFraction);
   const ringColor = !pomodoro || phase === 'work' ? 'var(--hero-2)' : 'var(--success)';
-  const mascotPose = paused ? 'lying' : pomodoro ? PHASE_POSE[phase] : 'reading';
+  const mascotPose = !started ? 'wave' : paused ? 'lying' : pomodoro ? PHASE_POSE[phase] : 'reading';
 
   const currentStepIndex = stepDone.findIndex((d) => !d);
 
@@ -189,7 +190,9 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
           </svg>
         </div>
         <div className="focus-ring-label">
-          {pomodoro
+          {!started
+            ? '준비되면 시작을 눌러요'
+            : pomodoro
             ? `${PHASE_LABEL[phase]} · ${paused ? '잠깐 쉬는 중' : `${Math.ceil(phaseSeconds / 60)}분 중 남은 시간`}`
             : `${totalMinutes}분 중 ${paused ? '잠깐 쉬는 중' : '남은 시간'}`}
         </div>
@@ -235,12 +238,20 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
         </div>
 
         <div className="focus-footer">
-          <button className="btn secondary" style={{ flex: 1 }} onClick={() => setPaused((p) => !p)}>
-            {paused ? '다시 시작' : '잠깐 쉬기'}
-          </button>
-          <button className="btn" style={{ flex: 1.4 }} onClick={finish}>
-            ✓ 여기까지 했어요!
-          </button>
+          {started ? (
+            <>
+              <button className="btn secondary" style={{ flex: 1 }} onClick={() => setPaused((p) => !p)}>
+                {paused ? '다시 시작' : '잠깐 쉬기'}
+              </button>
+              <button className="btn" style={{ flex: 1.4 }} onClick={finish}>
+                ✓ 여기까지 했어요!
+              </button>
+            </>
+          ) : (
+            <button className="btn" style={{ flex: 1 }} onClick={() => setStarted(true)}>
+              ▶ 시작하기
+            </button>
+          )}
         </div>
       </div>
     </div>
