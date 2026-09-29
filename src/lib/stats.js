@@ -1,4 +1,4 @@
-import { weekday, addDays, today as todayStr, last7Days } from './date';
+import { weekday, addDays, today as todayStr } from './date';
 
 export function routinesForDate(routines, dateStr) {
   const wd = weekday(dateStr);
@@ -17,6 +17,8 @@ export function dayItems(state, dateStr) {
       target: r.amount,
       minTarget: r.minAmount,
       steps: r.steps || null,
+      time: r.time || '',
+      required: true,
       done: amountDone != null,
       amountDone: amountDone || 0,
     };
@@ -28,10 +30,15 @@ export function dayItems(state, dateStr) {
       id: t.id,
       title: t.title,
       category: t.category || 'etc',
+      time: t.time || '',
+      required: t.required ?? true,
       done: t.done,
       carriedFrom: t.carriedFrom,
     }));
-  return [...routines, ...custom];
+  // 반드시 할 일 → 가능하면 할 일, 같은 그룹 안에서는 이른 시간 순(시간 없는 건 뒤로)
+  return [...routines, ...custom].sort(
+    (a, b) => Number(b.required) - Number(a.required) || (a.time || '99:99').localeCompare(b.time || '99:99')
+  );
 }
 
 export function dayStatus(state, dateStr) {
@@ -113,33 +120,4 @@ export function goalWeeklyProgress(state, goalId, dates = weekDates()) {
     }
   }
   return { done, total };
-}
-
-export function weeklyReport(state, endDate = todayStr()) {
-  const days = last7Days(endDate);
-  const daily = days.map((d) => {
-    const st = dayStatus(state, d);
-    return { date: d, rate: st.rate, doneCount: st.doneCount, totalCount: st.totalCount };
-  });
-
-  let studyMinutes = 0; // japanese + dev (unit === '분')
-  let exerciseCount = 0;
-  const byCategory = {};
-
-  for (const d of days) {
-    const routines = routinesForDate(state.routines, d);
-    for (const r of routines) {
-      const amt = state.completions[r.id]?.[d];
-      if (amt == null) continue;
-      if (r.unit === '분' && (r.category === 'japanese' || r.category === 'dev' || r.category === 'study')) {
-        studyMinutes += amt;
-      }
-      if (r.category === 'exercise') {
-        exerciseCount += amt;
-      }
-      byCategory[r.category] = (byCategory[r.category] || 0) + amt;
-    }
-  }
-
-  return { daily, studyMinutes, exerciseCount, byCategory };
 }

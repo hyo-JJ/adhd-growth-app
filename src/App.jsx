@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { supabaseConfigured } from './lib/supabaseClient';
@@ -36,6 +36,11 @@ function SetupNeeded() {
   );
 }
 
+function Replan() {
+  const navigate = useNavigate();
+  return <Onboarding mode="replan" onDone={() => navigate('/my')} />;
+}
+
 function MainApp() {
   return (
     <HashRouter>
@@ -46,6 +51,7 @@ function MainApp() {
           <Route path="/records" element={<Records />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/my" element={<My />} />
+          <Route path="/plan" element={<Replan />} />
         </Routes>
         <NavBar />
       </div>

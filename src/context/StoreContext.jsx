@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { blankState, makeId } from '../lib/storage';
 import { fetchAll, db } from '../lib/db';
@@ -14,6 +14,10 @@ export function StoreProvider({ children }) {
   const { user } = useAuth();
   const [state, setState] = useState(blankState);
   const [ready, setReady] = useState(false);
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     if (!user) {
@@ -138,14 +142,6 @@ export function StoreProvider({ children }) {
         db.updateCustomTask(id, patch).catch(fail);
       },
 
-      addWeightLog(kg, date = today()) {
-        setState((s) => {
-          const rest = s.weightLogs.filter((w) => w.date !== date);
-          return { ...s, weightLogs: [...rest, { id: makeId(), date, kg }] };
-        });
-        db.setWeightLog(user.id, date, kg).catch(fail);
-      },
-
       toggleMinimalMode(date = today()) {
         let next = false;
         setState((s) => {
@@ -188,24 +184,13 @@ export function StoreProvider({ children }) {
         db.deleteIdea(id).catch(fail);
       },
 
-      addVocab(v) {
-        const id = makeId();
-        const full = { id, reviewCount: 0, wrong: false, ...v };
-        setState((s) => ({ ...s, vocab: [...s.vocab, full] }));
-        db.insertVocab(user.id, full).catch(fail);
-      },
-      updateVocab(id, patch) {
-        setState((s) => ({ ...s, vocab: s.vocab.map((v) => (v.id === id ? { ...v, ...patch } : v)) }));
-        db.updateVocab(id, patch).catch(fail);
-      },
-      deleteVocab(id) {
-        setState((s) => ({ ...s, vocab: s.vocab.filter((v) => v.id !== id) }));
-        db.deleteVocab(id).catch(fail);
-      },
-
       setNickname(nickname) {
         setState((s) => ({ ...s, nickname }));
         db.setNickname(user.id, nickname).catch(fail);
+      },
+      setDailyMaxTasks(n) {
+        setState((s) => ({ ...s, dailyMaxTasks: n }));
+        db.setDailyMaxTasks(user.id, n).catch(fail);
       },
 
       resetAllData() {
@@ -213,29 +198,74 @@ export function StoreProvider({ children }) {
         db.wipeAll(user.id).catch(fail);
       },
 
-      async importPlan({ goals = [], routines = [] }) {
+      // 같은 제목의 목표/루틴은 새로 만들지 않고 갱신한다 → 재계획해도 실행 기록이 이어진다.
+      async importPlan({ goals = [], routines = [], tasks = [], settings = {} }, { removeRoutineIds = [] } = {}) {
+        const current = stateRef.current;
+        if (settings.dailyMaxTasks != null) {
+          setState((s) => ({ ...s, dailyMaxTasks: settings.dailyMaxTasks }));
+          db.setDailyMaxTasks(user.id, settings.dailyMaxTasks).catch(fail);
+        }
+
+        const goalIdByTitle = {};
         for (const g of goals) {
-          const goalId = makeId();
-          const subGoals = (g.subGoals || []).map((sg) => ({ id: makeId(), progress: sg.progress ?? 0, done: false, title: sg.title }));
+          const existing = current.goals.find((eg) => eg.title === g.title);
+          const goalId = existing?.id || makeId();
+          goalIdByTitle[g.title] = goalId;
+          const knownSubs = new Set((existing?.subGoals || []).map((sg) => sg.title));
+          const newSubs = (g.subGoals || [])
+            .filter((sg) => !knownSubs.has(sg.title))
+            .map((sg) => ({ id: makeId(), progress: sg.progress ?? 0, done: false, title: sg.title }));
+          const fields = { title: g.title, category: g.category, deadline: g.deadline || '' };
           setState((s) => ({
             ...s,
-            goals: [...s.goals, { id: goalId, title: g.title, category: g.category, deadline: g.deadline || '', subGoals }],
+            goals: existing
+              ? s.goals.map((eg) => (eg.id === goalId ? { ...eg, ...fields, subGoals: [...eg.subGoals, ...newSubs] } : eg))
+              : [...s.goals, { id: goalId, ...fields, subGoals: newSubs }],
           }));
           try {
             // sub_goals has a FK on goal_id, so the parent row must exist first.
-            await db.insertGoal(user.id, { id: goalId, title: g.title, category: g.category, deadline: g.deadline });
-            for (const sg of subGoals) {
+            if (existing) await db.updateGoal(goalId, fields);
+            else await db.insertGoal(user.id, { id: goalId, ...fields });
+            for (const sg of newSubs) {
               await db.insertSubGoal(user.id, goalId, sg);
             }
           } catch (err) {
             fail(err);
           }
         }
+
         for (const r of routines) {
-          const id = makeId();
-          const full = { id, title: r.title, category: r.category, days: r.days, amount: r.amount, minAmount: r.minAmount ?? null, unit: r.unit };
-          setState((s) => ({ ...s, routines: [...s.routines, full] }));
-          db.insertRoutine(user.id, full).catch(fail);
+          const fields = {
+            title: r.title,
+            category: r.category,
+            days: r.days,
+            amount: r.amount,
+            minAmount: r.minAmount ?? null,
+            unit: r.unit,
+            time: r.time || '',
+            goalId: goalIdByTitle[r.goalTitle] || null,
+          };
+          const existing = current.routines.find((er) => er.title === r.title);
+          if (existing) {
+            setState((s) => ({ ...s, routines: s.routines.map((er) => (er.id === existing.id ? { ...er, ...fields } : er)) }));
+            db.updateRoutine(existing.id, fields).catch(fail);
+          } else {
+            const full = { id: makeId(), ...fields };
+            setState((s) => ({ ...s, routines: [...s.routines, full] }));
+            db.insertRoutine(user.id, full).catch(fail);
+          }
+        }
+
+        for (const t of tasks) {
+          if (current.customTasks.some((et) => et.title === t.title && et.date === t.date)) continue;
+          const full = { id: makeId(), done: false, ...t };
+          setState((s) => ({ ...s, customTasks: [...s.customTasks, full] }));
+          db.insertCustomTask(user.id, full).catch(fail);
+        }
+
+        for (const id of removeRoutineIds) {
+          setState((s) => ({ ...s, routines: s.routines.filter((r) => r.id !== id) }));
+          db.deleteRoutine(id).catch(fail);
         }
       },
     }),

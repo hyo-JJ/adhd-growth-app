@@ -8,6 +8,7 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   nickname text not null default '나',
   username text unique,
+  daily_max_tasks int,
   created_at timestamptz not null default now()
 );
 
@@ -43,6 +44,7 @@ create table if not exists routines (
   min_amount numeric,
   unit text not null default '',
   steps text[],
+  time text,
   goal_id uuid references goals(id) on delete set null,
   sub_goal_id uuid references sub_goals(id) on delete set null,
   created_at timestamptz not null default now()
@@ -68,16 +70,9 @@ create table if not exists custom_tasks (
   done boolean not null default false,
   carried_from date,
   est_minutes numeric,
+  time text,
+  required boolean not null default true,
   created_at timestamptz not null default now()
-);
-
--- 체중 기록
-create table if not exists weight_logs (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  date date not null,
-  kg numeric not null,
-  unique (user_id, date)
 );
 
 -- 프로젝트
@@ -89,7 +84,7 @@ create table if not exists projects (
   created_at timestamptz not null default now()
 );
 
--- 콘텐츠 아이디어
+-- 아이디어 보관함
 create table if not exists ideas (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -97,17 +92,6 @@ create table if not exists ideas (
   status text not null default 'idea',
   tag text,
   captured_in_focus boolean not null default false,
-  created_at timestamptz not null default now()
-);
-
--- 일본어 단어장
-create table if not exists vocab (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  word text not null,
-  meaning text not null,
-  wrong boolean not null default false,
-  review_count int not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -125,10 +109,8 @@ alter table sub_goals enable row level security;
 alter table routines enable row level security;
 alter table completions enable row level security;
 alter table custom_tasks enable row level security;
-alter table weight_logs enable row level security;
 alter table projects enable row level security;
 alter table ideas enable row level security;
-alter table vocab enable row level security;
 alter table minimal_days enable row level security;
 
 do $$
@@ -137,7 +119,7 @@ declare
 begin
   for t in select unnest(array[
     'goals', 'sub_goals', 'routines', 'completions', 'custom_tasks',
-    'weight_logs', 'projects', 'ideas', 'vocab', 'minimal_days'
+    'projects', 'ideas', 'minimal_days'
   ])
   loop
     execute format('drop policy if exists "own rows" on %I', t);

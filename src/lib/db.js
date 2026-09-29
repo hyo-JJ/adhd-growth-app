@@ -13,7 +13,7 @@ async function check(builder) {
 }
 
 export async function fetchAll(userId) {
-  const [profile, goals, subGoals, routines, completions, customTasks, weightLogs, projects, ideas, vocab, minimalDays] =
+  const [profile, goals, subGoals, routines, completions, customTasks, projects, ideas, minimalDays] =
     await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       supabase.from('goals').select('*').eq('user_id', userId).order('created_at'),
@@ -21,10 +21,8 @@ export async function fetchAll(userId) {
       supabase.from('routines').select('*').eq('user_id', userId).order('created_at'),
       supabase.from('completions').select('*').eq('user_id', userId),
       supabase.from('custom_tasks').select('*').eq('user_id', userId).order('created_at'),
-      supabase.from('weight_logs').select('*').eq('user_id', userId),
       supabase.from('projects').select('*').eq('user_id', userId).order('created_at'),
       supabase.from('ideas').select('*').eq('user_id', userId).order('created_at'),
-      supabase.from('vocab').select('*').eq('user_id', userId).order('created_at'),
       supabase.from('minimal_days').select('*').eq('user_id', userId),
     ]);
 
@@ -55,6 +53,7 @@ export async function fetchAll(userId) {
 
   return {
     nickname: profileData?.nickname || '나',
+    dailyMaxTasks: profileData?.daily_max_tasks ?? null,
     goals: nestedGoals,
     routines: (await check(routines)).map((r) => ({
       id: r.id,
@@ -65,6 +64,7 @@ export async function fetchAll(userId) {
       minAmount: r.min_amount == null ? null : Number(r.min_amount),
       unit: r.unit,
       steps: r.steps || null,
+      time: r.time || '',
       goalId: r.goal_id || null,
       subGoalId: r.sub_goal_id || null,
     })),
@@ -77,8 +77,9 @@ export async function fetchAll(userId) {
       done: t.done,
       carriedFrom: t.carried_from || null,
       estMinutes: t.est_minutes == null ? null : Number(t.est_minutes),
+      time: t.time || '',
+      required: t.required ?? true,
     })),
-    weightLogs: (await check(weightLogs)).map((w) => ({ id: w.id, date: w.date, kg: Number(w.kg) })),
     projects: (await check(projects)).map((p) => ({ id: p.id, name: p.name, stage: p.stage })),
     ideas: (await check(ideas)).map((i) => ({
       id: i.id,
@@ -88,13 +89,6 @@ export async function fetchAll(userId) {
       capturedInFocus: i.captured_in_focus,
       createdAt: i.created_at,
     })),
-    vocab: (await check(vocab)).map((v) => ({
-      id: v.id,
-      word: v.word,
-      meaning: v.meaning,
-      wrong: v.wrong,
-      reviewCount: v.review_count,
-    })),
     minimalMode,
   };
 }
@@ -102,6 +96,8 @@ export async function fetchAll(userId) {
 export const db = {
   setNickname: (userId, nickname) =>
     check(supabase.from('profiles').upsert({ id: userId, nickname })),
+  setDailyMaxTasks: (userId, n) =>
+    check(supabase.from('profiles').update({ daily_max_tasks: n }).eq('id', userId)),
 
   insertGoal: (userId, goal) =>
     check(
@@ -162,6 +158,7 @@ export const db = {
         min_amount: routine.minAmount,
         unit: routine.unit,
         steps: routine.steps || null,
+        time: routine.time || null,
         goal_id: routine.goalId || null,
         sub_goal_id: routine.subGoalId || null,
       })
@@ -178,6 +175,7 @@ export const db = {
           ...(patch.minAmount !== undefined && { min_amount: patch.minAmount }),
           ...(patch.unit !== undefined && { unit: patch.unit }),
           ...(patch.steps !== undefined && { steps: patch.steps }),
+          ...(patch.time !== undefined && { time: patch.time || null }),
           ...(patch.goalId !== undefined && { goal_id: patch.goalId }),
           ...(patch.subGoalId !== undefined && { sub_goal_id: patch.subGoalId }),
         })
@@ -205,6 +203,8 @@ export const db = {
         done: task.done ?? false,
         carried_from: task.carriedFrom || null,
         est_minutes: task.estMinutes ?? null,
+        time: task.time || null,
+        required: task.required ?? true,
       })
     ),
   updateCustomTask: (id, patch) =>
@@ -216,13 +216,12 @@ export const db = {
           ...(patch.date !== undefined && { date: patch.date }),
           ...(patch.carriedFrom !== undefined && { carried_from: patch.carriedFrom }),
           ...(patch.estMinutes !== undefined && { est_minutes: patch.estMinutes }),
+          ...(patch.time !== undefined && { time: patch.time || null }),
+          ...(patch.required !== undefined && { required: patch.required }),
         })
         .eq('id', id)
     ),
   deleteCustomTask: (id) => check(supabase.from('custom_tasks').delete().eq('id', id)),
-
-  setWeightLog: (userId, date, kg) =>
-    check(supabase.from('weight_logs').upsert({ user_id: userId, date, kg }, { onConflict: 'user_id,date' })),
 
   insertProject: (userId, project) =>
     check(
@@ -256,34 +255,9 @@ export const db = {
     ),
   deleteIdea: (id) => check(supabase.from('ideas').delete().eq('id', id)),
 
-  insertVocab: (userId, v) =>
-    check(
-      supabase.from('vocab').insert({
-        id: v.id,
-        user_id: userId,
-        word: v.word,
-        meaning: v.meaning,
-        wrong: v.wrong ?? false,
-        review_count: v.reviewCount ?? 0,
-      })
-    ),
-  updateVocab: (id, patch) =>
-    check(
-      supabase
-        .from('vocab')
-        .update({
-          ...(patch.word !== undefined && { word: patch.word }),
-          ...(patch.meaning !== undefined && { meaning: patch.meaning }),
-          ...(patch.wrong !== undefined && { wrong: patch.wrong }),
-          ...(patch.reviewCount !== undefined && { review_count: patch.reviewCount }),
-        })
-        .eq('id', id)
-    ),
-  deleteVocab: (id) => check(supabase.from('vocab').delete().eq('id', id)),
-
   wipeAll: (userId) =>
     Promise.all(
-      ['goals', 'routines', 'custom_tasks', 'weight_logs', 'projects', 'ideas', 'vocab', 'minimal_days'].map((t) =>
+      ['goals', 'routines', 'custom_tasks', 'projects', 'ideas', 'minimal_days'].map((t) =>
         check(supabase.from(t).delete().eq('user_id', userId))
       )
     ),

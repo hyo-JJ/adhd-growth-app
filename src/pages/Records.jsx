@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { getCategory } from '../lib/categories';
-import { today, formatKorean, weekdayLabel } from '../lib/date';
+import { today, weekdayLabel } from '../lib/date';
 import { dayStatus, weekDates, dailyFocusMinutes, weeklyCategorySummary } from '../lib/stats';
 import Mascot from '../components/Mascot';
 import CategoryIcon from '../components/CategoryIcon';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-const REPORT_CATS = ['japanese', 'dev', 'exercise', 'selfcare'];
+// 이번 주에 기록이 있는 분야 중 많이 한 순서로 최대 4개, 기록이 없으면 등록된 루틴의 분야로 채운다.
+function reportCategories(state, catSummary) {
+  const used = Object.keys(catSummary).sort((a, b) => catSummary[b].days.size - catSummary[a].days.size);
+  const planned = [...new Set(state.routines.map((r) => getCategory(r.category).id))];
+  return [...new Set([...used, ...planned])].slice(0, 4);
+}
 
 function formatCatValue(bucket) {
   if (!bucket) return { value: '-', sub: '아직 기록 없어요' };
@@ -24,6 +28,7 @@ function WeeklyReport({ state }) {
   const dates = useMemo(() => weekDates(t), [t]);
   const focusByDay = useMemo(() => dailyFocusMinutes(state, dates), [state, dates]);
   const catSummary = useMemo(() => weeklyCategorySummary(state, dates), [state, dates]);
+  const reportCats = reportCategories(state, catSummary);
 
   const movedDays = dates.filter((d) => d <= t && dayStatus(state, d).doneCount > 0).length;
   const totalFocusMinutes = focusByDay.reduce((sum, d) => sum + d.minutes, 0);
@@ -93,8 +98,9 @@ function WeeklyReport({ state }) {
         ))}
       </div>
 
+      {reportCats.length > 0 && (
       <div className="stat-grid" style={{ marginTop: 20 }}>
-        {REPORT_CATS.map((cid) => {
+        {reportCats.map((cid) => {
           const cat = getCategory(cid);
           const { value, sub } = formatCatValue(catSummary[cid]);
           return (
@@ -108,32 +114,20 @@ function WeeklyReport({ state }) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
 
 export default function Records() {
-  const { state, setCompletion, clearCompletion, addWeightLog } = useStore();
+  const { state, setCompletion, clearCompletion } = useStore();
   const [logDate, setLogDate] = useState(today());
-  const [weightInput, setWeightInput] = useState('');
 
   const routines = state.routines;
 
   function currentAmount(routineId) {
     return state.completions[routineId]?.[logDate];
   }
-
-  function submitWeight() {
-    const kg = parseFloat(weightInput);
-    if (!kg || kg <= 0) return;
-    addWeightLog(kg, logDate);
-    setWeightInput('');
-  }
-
-  const sortedWeights = useMemo(
-    () => [...state.weightLogs].sort((a, b) => (a.date < b.date ? -1 : 1)).slice(-14),
-    [state.weightLogs]
-  );
 
   const history = useMemo(() => {
     const items = [];
@@ -143,17 +137,17 @@ export default function Records() {
         items.push({ date, label: `${getCategory(r.category).emoji} ${r.title} ${amount}${r.unit}` });
       }
     }
-    for (const w of state.weightLogs) {
-      items.push({ date: w.date, label: `⚖️ 체중 ${w.kg}kg` });
+    for (const t of state.customTasks) {
+      if (t.done) items.push({ date: t.date, label: `${getCategory(t.category).emoji} ${t.title} 완료` });
     }
     return items.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 20);
-  }, [state.completions, state.weightLogs, routines]);
+  }, [state.completions, state.customTasks, routines]);
 
   return (
     <>
       <div className="topbar">
         <h1>기록</h1>
-        <div className="sub">공부·운동·체중·물을 빠르게 기록해요</div>
+        <div className="sub">루틴을 실제로 얼마나 했는지 기록해요</div>
       </div>
       <div className="app-main" style={{ paddingTop: 4 }}>
         <WeeklyReport state={state} />
@@ -190,34 +184,6 @@ export default function Records() {
               </div>
             );
           })}
-        </div>
-
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>⚖️ 체중 기록</h3>
-          <div className="row">
-            <input
-              type="number"
-              step="0.1"
-              placeholder="예: 65.5"
-              value={weightInput}
-              onChange={(e) => setWeightInput(e.target.value)}
-            />
-            <button className="btn" style={{ flex: '0 0 auto' }} onClick={submitWeight}>
-              기록
-            </button>
-          </div>
-          {sortedWeights.length > 1 && (
-            <div style={{ marginTop: 14 }}>
-              <ResponsiveContainer width="100%" height={120}>
-                <LineChart data={sortedWeights} margin={{ left: -30, right: 10, top: 6, bottom: 0 }}>
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-dim)' }} tickFormatter={(d) => d.slice(5)} axisLine={false} tickLine={false} />
-                  <YAxis domain={['dataMin - 1', 'dataMax + 1']} hide />
-                  <Tooltip labelFormatter={(d) => formatKorean(d)} formatter={(v) => [`${v}kg`, '체중']} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
-                  <Line type="monotone" dataKey="kg" stroke="#5b6ee1" strokeWidth={2} dot={{ r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
         </div>
 
         <div className="card">

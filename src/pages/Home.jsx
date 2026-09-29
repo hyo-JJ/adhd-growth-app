@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { today, formatKorean } from '../lib/date';
 import { dayItems, dayStatus } from '../lib/stats';
-import { getCategory } from '../lib/categories';
+import { CATEGORIES, getCategory } from '../lib/categories';
 import Sheet from '../components/Sheet';
 import Mascot from '../components/Mascot';
 import CategoryIcon from '../components/CategoryIcon';
@@ -36,6 +36,8 @@ export default function Home() {
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState('etc');
   const [newMinutes, setNewMinutes] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [newRequired, setNewRequired] = useState(true);
   const [mood, setMood] = useState(null);
   const [heroIndex, setHeroIndex] = useState(0);
   const [focusItem, setFocusItem] = useState(null);
@@ -72,9 +74,13 @@ export default function Home() {
       category: newCategory,
       date: t,
       estMinutes: newMinutes ? Number(newMinutes) : null,
+      time: newTime,
+      required: newRequired,
     });
     setNewTitle('');
     setNewMinutes('');
+    setNewTime('');
+    setNewRequired(true);
     setAddOpen(false);
   }
 
@@ -87,6 +93,7 @@ export default function Home() {
 
   const overdueTasks = state.customTasks.filter((c) => !c.done && c.date < t);
   const heroCat = hero ? getCategory(hero.category) : null;
+  const overLimit = state.dailyMaxTasks != null && items.length > state.dailyMaxTasks;
   const heroTarget =
     hero && hero.kind === 'routine' ? `${minimal && hero.minTarget != null ? hero.minTarget : hero.target}${hero.unit}` : null;
 
@@ -138,6 +145,7 @@ export default function Home() {
             </div>
             <div className="hero-title">{hero.title}</div>
             <div className="hero-sub">
+              {hero.time && `${hero.time} · `}
               {heroTarget ? `${heroTarget} · 시작만 해도 충분해요` : '오늘 할 일 · 시작만 해도 충분해요'}
             </div>
             <div className="hero-actions">
@@ -178,6 +186,12 @@ export default function Home() {
           </button>
         </div>
 
+        {overLimit && (
+          <div className="banner">
+            오늘 할 일이 {items.length}개로, 정해둔 하루 최대 {state.dailyMaxTasks}개보다 많아요. &lsquo;가능하면&rsquo; 할 일은 미뤄도 괜찮아요.
+          </div>
+        )}
+
         {items.length > 0 && (
           <>
             <div className="section-header-row">
@@ -196,10 +210,14 @@ export default function Home() {
 
             {rest.map((item) => {
               const cat = getCategory(item.category);
-              const targetLabel =
-                item.kind === 'routine'
-                  ? `${cat.label} · ${minimal && item.minTarget != null ? item.minTarget : item.target}${item.unit}`
-                  : cat.label;
+              const targetLabel = [
+                item.time,
+                cat.label,
+                item.kind === 'routine' && `${minimal && item.minTarget != null ? item.minTarget : item.target}${item.unit}`,
+                !item.required && '가능하면',
+              ]
+                .filter(Boolean)
+                .join(' · ');
               const promote = () => {
                 if (item.done) return;
                 const idx = incomplete.findIndex((i) => i.kind === item.kind && i.id === item.id);
@@ -236,25 +254,33 @@ export default function Home() {
             type="text"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="예: 콘텐츠 아이디어 1개"
+            placeholder="예: 세탁기 돌리기"
             autoFocus
           />
         </div>
         <label>카테고리</label>
         <div className="chip-row">
-          {['japanese', 'dev', 'exercise', 'selfcare', 'project', 'study', 'content', 'etc'].map((c) => {
-            const cat = getCategory(c);
-            return (
-              <button
-                key={c}
-                className={'chip' + (newCategory === c ? ' active' : '')}
-                onClick={() => setNewCategory(c)}
-              >
-                {cat.emoji} {cat.label}
-              </button>
-            );
-          })}
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              className={'chip' + (newCategory === cat.id ? ' active' : '')}
+              onClick={() => setNewCategory(cat.id)}
+            >
+              {cat.emoji} {cat.label}
+            </button>
+          ))}
         </div>
+        <label>꼭 해야 하나요?</label>
+        <div className="chip-row">
+          <button className={'chip' + (newRequired ? ' active' : '')} onClick={() => setNewRequired(true)}>
+            오늘 꼭
+          </button>
+          <button className={'chip' + (!newRequired ? ' active' : '')} onClick={() => setNewRequired(false)}>
+            가능하면
+          </button>
+        </div>
+        <label>시간 (선택)</label>
+        <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
         <label>예상 시간 (분, 선택)</label>
         <input
           type="number"

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { weekdayLabel } from '../lib/date';
@@ -20,10 +21,11 @@ const IDEA_STAGES = [
 
 export default function My() {
   const store = useStore();
-  const { state, setNickname, addRoutine, updateRoutine, deleteRoutine, resetAllData } = store;
+  const { state, setNickname, setDailyMaxTasks, addRoutine, updateRoutine, deleteRoutine, resetAllData } = store;
   const { user, signOut } = useAuth();
 
   const [nick, setNick] = useState(state.nickname);
+  const [maxTasks, setMaxTasks] = useState(state.dailyMaxTasks ?? '');
   const [routineSheet, setRoutineSheet] = useState(false);
   const [editingRoutine, setEditingRoutine] = useState(null);
 
@@ -31,7 +33,7 @@ export default function My() {
     <>
       <div className="topbar">
         <h1>MY</h1>
-        <div className="sub">루틴 · 학습 · 프로젝트 관리</div>
+        <div className="sub">루틴 · 계획 · 프로젝트 관리</div>
       </div>
       <div className="app-main" style={{ paddingTop: 4 }}>
         <div className="card">
@@ -39,6 +41,33 @@ export default function My() {
           <div className="row">
             <input type="text" value={nick} onChange={(e) => setNick(e.target.value)} />
             <button className="btn secondary" style={{ flex: '0 0 auto' }} onClick={() => setNickname(nick)}>
+              저장
+            </button>
+          </div>
+        </div>
+
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>🤖 AI와 계획 다시 짜기</h3>
+          <div className="task-meta" style={{ marginBottom: 10 }}>
+            계획대로 잘 안 되고 있다면, 최근 2주 실행 기록을 AI에게 보여주고 같이 조정해봐요.
+          </div>
+          <Link to="/plan" className="btn block" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+            실행 기록으로 계획 조정하기
+          </Link>
+        </div>
+
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>하루 최대 할 일 수</h3>
+          <div className="task-meta" style={{ marginBottom: 10 }}>
+            오늘 할 일이 이 숫자보다 많으면 홈에서 알려드려요. 비워두면 제한 없어요.
+          </div>
+          <div className="row">
+            <input type="number" min="1" placeholder="예: 5" value={maxTasks} onChange={(e) => setMaxTasks(e.target.value)} />
+            <button
+              className="btn secondary"
+              style={{ flex: '0 0 auto' }}
+              onClick={() => setDailyMaxTasks(Number(maxTasks) > 0 ? Math.round(Number(maxTasks)) : null)}
+            >
               저장
             </button>
           </div>
@@ -57,7 +86,6 @@ export default function My() {
           deleteRoutine={deleteRoutine}
         />
 
-        <VocabSection store={store} />
         <ProjectSection store={store} />
         <IdeaSection store={store} />
 
@@ -110,7 +138,8 @@ function RoutineSection({ state, onAdd, onEdit, deleteRoutine }) {
             <div className="task-title" onClick={() => onEdit(r)} style={{ cursor: 'pointer' }}>
               {r.title}
               <div className="task-meta">
-                {r.days.length === 7 ? '매일' : r.days.map(weekdayLabel).join(',')} · {r.amount}{r.unit}
+                {r.days.length === 7 ? '매일' : r.days.map(weekdayLabel).join(',')}
+                {r.time && ` ${r.time}`} · {r.amount}{r.unit}
                 {r.minAmount != null && ` (최소 ${r.minAmount}${r.unit})`}
               </div>
             </div>
@@ -118,54 +147,6 @@ function RoutineSection({ state, onAdd, onEdit, deleteRoutine }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function VocabSection({ store }) {
-  const { state, addVocab, updateVocab, deleteVocab } = store;
-  const [open, setOpen] = useState(false);
-  const [word, setWord] = useState('');
-  const [meaning, setMeaning] = useState('');
-
-  function submit() {
-    if (!word.trim() || !meaning.trim()) return;
-    addVocab({ word: word.trim(), meaning: meaning.trim() });
-    setWord('');
-    setMeaning('');
-  }
-
-  return (
-    <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>🇯🇵 일본어 단어장</h3>
-        <button className="link-btn" onClick={() => setOpen((o) => !o)}>{open ? '접기' : '펼치기'}</button>
-      </div>
-      {open && (
-        <>
-          <div className="row" style={{ marginTop: 10 }}>
-            <input type="text" placeholder="단어" value={word} onChange={(e) => setWord(e.target.value)} />
-            <input type="text" placeholder="뜻" value={meaning} onChange={(e) => setMeaning(e.target.value)} />
-            <button className="btn" style={{ flex: '0 0 auto' }} onClick={submit}>추가</button>
-          </div>
-          {state.vocab.length === 0 && <div className="empty-state">단어를 추가해보세요.</div>}
-          {state.vocab.map((v) => (
-            <div className="task-row" key={v.id}>
-              <div className="task-title">
-                {v.word} <span className="task-meta">— {v.meaning}</span>
-              </div>
-              <button
-                className={'chip' + (v.wrong ? ' active' : '')}
-                style={{ fontSize: 11, padding: '5px 10px' }}
-                onClick={() => updateVocab(v.id, { wrong: !v.wrong })}
-              >
-                오답
-              </button>
-              <button className="icon-btn" style={{ width: 26, height: 26, fontSize: 12 }} onClick={() => deleteVocab(v.id)}>✕</button>
-            </div>
-          ))}
-        </>
-      )}
     </div>
   );
 }
@@ -190,7 +171,7 @@ function ProjectSection({ store }) {
       {open && (
         <>
           <div className="row" style={{ marginTop: 10 }}>
-            <input type="text" placeholder="예: SAI" value={name} onChange={(e) => setName(e.target.value)} />
+            <input type="text" placeholder="예: 포트폴리오 사이트" value={name} onChange={(e) => setName(e.target.value)} />
             <button className="btn" style={{ flex: '0 0 auto' }} onClick={submit}>추가</button>
           </div>
           {state.projects.length === 0 && <div className="empty-state">프로젝트를 추가해보세요.</div>}

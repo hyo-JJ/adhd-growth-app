@@ -11,14 +11,13 @@ export function makeId() {
 export function blankState() {
   return {
     nickname: '나',
+    dailyMaxTasks: null,
     goals: [],
     routines: [],
     completions: {},
     customTasks: [],
-    weightLogs: [],
     projects: [],
     ideas: [],
-    vocab: [],
     minimalMode: {},
   };
 }

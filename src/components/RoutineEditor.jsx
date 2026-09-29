@@ -10,6 +10,7 @@ export function RoutineForm({ initial, onSubmit, lockCategory = false }) {
   const [amount, setAmount] = useState(initial?.amount ?? '');
   const [minAmount, setMinAmount] = useState(initial?.minAmount ?? '');
   const [unit, setUnit] = useState(initial?.unit || '분');
+  const [time, setTime] = useState(initial?.time || '');
   const [stepsText, setStepsText] = useState((initial?.steps || []).join('\n'));
 
   function toggleDay(d) {
@@ -20,7 +21,7 @@ export function RoutineForm({ initial, onSubmit, lockCategory = false }) {
     <div>
       <div className="field">
         <label>이름</label>
-        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 영어 공부" autoFocus />
+        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 스트레칭" autoFocus />
       </div>
       {!lockCategory && (
         <>
@@ -52,13 +53,15 @@ export function RoutineForm({ initial, onSubmit, lockCategory = false }) {
           <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="분/회/L" />
         </div>
       </div>
+      <label>시간 (선택)</label>
+      <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
       <label>최소 루틴 목표량 (선택, "오늘 너무 바빠"용)</label>
       <input type="number" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} placeholder="10" />
       <label>✂ 작은 단계 (선택, 집중 모드에서 보여줘요)</label>
       <textarea
         value={stepsText}
         onChange={(e) => setStepsText(e.target.value)}
-        placeholder={'한 줄에 하나씩 적어주세요\n예: 단어장 Day 12 열기\n1~10번 소리 내어 읽기'}
+        placeholder={'한 줄에 하나씩 적어주세요\n예: 매트 펴기\n목·어깨 5분 풀기'}
       />
       <div style={{ height: 16 }} />
       <button
@@ -72,6 +75,7 @@ export function RoutineForm({ initial, onSubmit, lockCategory = false }) {
             amount: Number(amount) || 0,
             minAmount: minAmount === '' ? null : Number(minAmount),
             unit,
+            time,
             steps: stepsText
               .split('\n')
               .map((s) => s.trim())
