@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { loadFocusSession } from './lib/focusSession';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { supabaseConfigured } from './lib/supabaseClient';
@@ -42,9 +43,21 @@ function Replan() {
   return <Onboarding mode="replan" onDone={() => navigate('/my')} />;
 }
 
+// 앱이 종료됐다 다시 열리면 홈으로 시작하니까, 목표 탭에서 하던 타이머가 있으면 거기로 돌려보내요
+function FocusResume() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (loadFocusSession()?.source === 'goals' && pathname !== '/goals') navigate('/goals', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
 function MainApp() {
   return (
     <HashRouter>
+      <FocusResume />
       <div className="app-shell">
         <Routes>
           <Route path="/" element={<Home />} />

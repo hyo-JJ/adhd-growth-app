@@ -8,6 +8,7 @@ import Mascot from '../components/Mascot';
 import CategoryIcon from '../components/CategoryIcon';
 import FocusMode from '../components/FocusMode';
 import RoutineSheet from '../components/RoutineEditor';
+import { loadFocusSession } from '../lib/focusSession';
 
 const LARGE_THRESHOLD = 40; // minutes
 
@@ -40,7 +41,10 @@ export default function Goals() {
   const [splitFor, setSplitFor] = useState(null); // routine
   const [stepsText, setStepsText] = useState('');
   const [dismissed, setDismissed] = useState(() => new Set());
-  const [focusItem, setFocusItem] = useState(null);
+  const [focusItem, setFocusItem] = useState(() => {
+    const s = loadFocusSession();
+    return s?.source === 'goals' ? s.item : null;
+  });
 
   function submitGoal() {
     if (!title.trim()) return;
@@ -345,6 +349,7 @@ export default function Goals() {
       {focusItem && (
         <FocusMode
           item={focusItem}
+          source="goals"
           onClose={() => setFocusItem(null)}
           onComplete={() => toggleAction(focusItem)}
           onParkIdea={(text) => addIdea({ title: text, capturedInFocus: true })}

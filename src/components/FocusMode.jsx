@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Mascot from './Mascot';
 import { getCategory } from '../lib/categories';
+import { loadFocusSession, saveFocusSession, clearFocusSession } from '../lib/focusSession';
 
 const RADIUS = 92;
 const CIRC = 2 * Math.PI * RADIUS;
@@ -9,6 +10,7 @@ const POMO_WORK = 25 * 60;
 const POMO_SHORT = 5 * 60;
 const POMO_LONG = 15 * 60;
 const POMO_CYCLES = 4;
+const PHASE_SECONDS = { work: POMO_WORK, short: POMO_SHORT, long: POMO_LONG };
 
 const PHASE_LABEL = { work: '집중 시간', short: '짧은 휴식', long: '긴 휴식' };
 const PHASE_POSE = { work: 'reading', short: 'lying', long: 'heart' };
@@ -19,69 +21,108 @@ function formatClock(totalSeconds) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
+// 멈춰 있으면 left(남은 초)를, 돌아가는 중이면 endAt(끝나는 시각)을 기준으로 계산해요.
+// 시각 기준이라 화면이 꺼져 있던 동안에도 시간이 제대로 흘러가요.
+function isRunning(timer) {
+  return timer.started && !timer.paused;
+}
+
+function remainingOf(timer, now) {
+  if (!isRunning(timer)) return timer.left;
+  return Math.max(0, Math.ceil((timer.endAt - now) / 1000));
+}
+
+// 포모도로: 화면이 꺼진 사이 여러 구간이 지났을 수도 있으니 현재 시각까지 따라잡아요
+function advancePomodoro(timer, now) {
+  if (!timer.pomodoro || !isRunning(timer) || timer.endAt > now) return timer;
+  let { phase, cycle, endAt } = timer;
+  while (endAt <= now) {
+    if (phase === 'work') {
+      cycle += 1;
+      phase = cycle >= POMO_CYCLES ? 'long' : 'short';
+    } else {
+      if (phase === 'long') cycle = 0;
+      phase = 'work';
+    }
+    endAt += PHASE_SECONDS[phase] * 1000;
+  }
+  return { ...timer, phase, cycle, endAt };
+}
+
+export default function FocusMode({ item, source, onClose, onComplete, onParkIdea }) {
   const rawTarget = item.target ?? item.amount;
   const totalMinutes = item.unit === '분' && rawTarget ? rawTarget : 25;
   const totalSeconds = totalMinutes * 60;
 
-  const [remaining, setRemaining] = useState(totalSeconds);
-  const [started, setStarted] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [pomodoro, setPomodoro] = useState(false);
-  const [phase, setPhase] = useState('work');
-  const [cycle, setCycle] = useState(0);
-  const [stepDone, setStepDone] = useState(() => (item.steps || []).map(() => false));
+  const [saved] = useState(() => {
+    const s = loadFocusSession();
+    return s && s.source === source && s.item?.id === item.id ? s : null;
+  });
+  const [timer, setTimer] = useState(
+    () =>
+      saved?.timer ?? {
+        started: false,
+        paused: false,
+        pomodoro: false,
+        phase: 'work',
+        cycle: 0,
+        left: totalSeconds,
+        endAt: null,
+      },
+  );
+  const [now, setNow] = useState(() => Date.now());
+  const [stepDone, setStepDone] = useState(() => saved?.stepDone ?? (item.steps || []).map(() => false));
   const [ideaText, setIdeaText] = useState('');
-  const [parkedCount, setParkedCount] = useState(0);
+  const [parkedCount, setParkedCount] = useState(saved?.parkedCount ?? 0);
   const [savedFlash, setSavedFlash] = useState(false);
-  const intervalRef = useRef(null);
+
+  const { started, paused, pomodoro, phase, cycle } = timer;
+  const running = isRunning(timer);
+  const remaining = remainingOf(timer, now);
 
   useEffect(() => {
-    if (!started || paused) return;
-    intervalRef.current = setInterval(() => {
-      setRemaining((r) => (r > 0 ? r - 1 : 0));
-    }, 1000);
-    return () => clearInterval(intervalRef.current);
-  }, [started, paused]);
+    if (!running) return;
+    const sync = () => {
+      const t = Date.now();
+      setNow(t);
+      setTimer((prev) => advancePomodoro(prev, t));
+    };
+    sync();
+    const id = setInterval(sync, 500);
+    // 화면을 다시 켰을 때 바로 맞춰요
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', sync);
+    };
+  }, [running]);
 
-  // auto-advance through pomodoro work/break phases when the clock hits zero
   useEffect(() => {
-    if (!pomodoro || remaining !== 0) return;
-    if (phase === 'work') {
-      const nextCycle = cycle + 1;
-      setCycle(nextCycle);
-      if (nextCycle >= POMO_CYCLES) {
-        setPhase('long');
-        setRemaining(POMO_LONG);
-      } else {
-        setPhase('short');
-        setRemaining(POMO_SHORT);
-      }
-    } else {
-      if (phase === 'long') setCycle(0);
-      setPhase('work');
-      setRemaining(POMO_WORK);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remaining, pomodoro]);
+    saveFocusSession({ source, item, timer, stepDone, parkedCount });
+  }, [source, item, timer, stepDone, parkedCount]);
+
+  function start() {
+    setTimer((t) => ({ ...t, started: true, paused: false, endAt: Date.now() + t.left * 1000 }));
+  }
+
+  function togglePause() {
+    setTimer((t) =>
+      t.paused
+        ? { ...t, paused: false, endAt: Date.now() + t.left * 1000 }
+        : { ...t, paused: true, left: remainingOf(t, Date.now()), endAt: null },
+    );
+  }
 
   function togglePomodoro() {
-    setPomodoro((prev) => {
-      const next = !prev;
-      setPaused(false);
-      if (next) {
-        setPhase('work');
-        setCycle(0);
-        setRemaining(POMO_WORK);
-      } else {
-        setRemaining(totalSeconds);
-      }
-      return next;
+    setTimer((t) => {
+      const secs = t.pomodoro ? totalSeconds : POMO_WORK;
+      const next = { ...t, pomodoro: !t.pomodoro, paused: false, phase: 'work', cycle: 0, left: secs };
+      return isRunning(next) ? { ...next, endAt: Date.now() + secs * 1000 } : next;
     });
   }
 
   const cat = getCategory(item.category);
-  const phaseSeconds = pomodoro ? (phase === 'work' ? POMO_WORK : phase === 'short' ? POMO_SHORT : POMO_LONG) : totalSeconds;
+  const phaseSeconds = pomodoro ? PHASE_SECONDS[phase] : totalSeconds;
   const remainingFraction = phaseSeconds === 0 ? 0 : remaining / phaseSeconds;
   const dashoffset = CIRC * (1 - remainingFraction);
   const ringColor = !pomodoro || phase === 'work' ? 'var(--hero-2)' : 'var(--success)';
@@ -102,7 +143,13 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
     setTimeout(() => setSavedFlash(false), 1500);
   }
 
+  function close() {
+    clearFocusSession();
+    onClose();
+  }
+
   function finish() {
+    clearFocusSession();
     onComplete();
     onClose();
   }
@@ -111,7 +158,7 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
     <div className="focus-overlay">
       <div className="focus-inner">
         <div className="focus-header">
-          <button className="icon-btn" onClick={onClose} aria-label="닫기">
+          <button className="icon-btn" onClick={close} aria-label="닫기">
             ✕
           </button>
           <span className="focus-pill">✦ {pomodoro ? `🍅 ${PHASE_LABEL[phase]}` : '집중 모드'}</span>
@@ -240,7 +287,7 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
         <div className="focus-footer">
           {started ? (
             <>
-              <button className="btn secondary" style={{ flex: 1 }} onClick={() => setPaused((p) => !p)}>
+              <button className="btn secondary" style={{ flex: 1 }} onClick={togglePause}>
                 {paused ? '다시 시작' : '잠깐 쉬기'}
               </button>
               <button className="btn" style={{ flex: 1.4 }} onClick={finish}>
@@ -248,7 +295,7 @@ export default function FocusMode({ item, onClose, onComplete, onParkIdea }) {
               </button>
             </>
           ) : (
-            <button className="btn" style={{ flex: 1 }} onClick={() => setStarted(true)}>
+            <button className="btn" style={{ flex: 1 }} onClick={start}>
               ▶ 시작하기
             </button>
           )}

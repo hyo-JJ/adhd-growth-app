@@ -8,6 +8,7 @@ import Mascot from '../components/Mascot';
 import CategoryIcon from '../components/CategoryIcon';
 import FocusMode from '../components/FocusMode';
 import ReschedulePlanner from '../components/ReschedulePlanner';
+import { loadFocusSession } from '../lib/focusSession';
 
 export default function Home() {
   const {
@@ -37,7 +38,10 @@ export default function Home() {
   const [journalDraft, setJournalDraft] = useState('');
   const [journalEditing, setJournalEditing] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
-  const [focusItem, setFocusItem] = useState(null);
+  const [focusItem, setFocusItem] = useState(() => {
+    const s = loadFocusSession();
+    return s?.source === 'home' ? s.item : null;
+  });
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [ideaText, setIdeaText] = useState('');
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -333,6 +337,7 @@ export default function Home() {
       {focusItem && (
         <FocusMode
           item={focusItem}
+          source="home"
           onClose={() => setFocusItem(null)}
           onComplete={() => toggleItem(focusItem)}
           onParkIdea={(text) => addIdea({ title: text, capturedInFocus: true })}
