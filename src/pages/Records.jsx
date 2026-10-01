@@ -5,6 +5,7 @@ import { today, weekdayLabel } from '../lib/date';
 import { dayStatus, weekDates, dailyFocusMinutes, weeklyCategorySummary } from '../lib/stats';
 import Mascot from '../components/Mascot';
 import CategoryIcon from '../components/CategoryIcon';
+import AiReviewSheet from '../components/AiReviewSheet';
 
 // 이번 주에 기록이 있는 분야 중 많이 한 순서로 최대 4개, 기록이 없으면 등록된 루틴의 분야로 채운다.
 function reportCategories(state, catSummary) {
@@ -122,6 +123,7 @@ function WeeklyReport({ state }) {
 export default function Records() {
   const { state, setCompletion, clearCompletion } = useStore();
   const [logDate, setLogDate] = useState(today());
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const routines = state.routines;
 
@@ -156,6 +158,16 @@ export default function Records() {
       </div>
       <div className="app-main" style={{ paddingTop: 4 }}>
         <WeeklyReport state={state} />
+
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>🔍 AI에게 점검받기</h3>
+          <div className="task-meta" style={{ marginBottom: 10 }}>
+            잘하고 있는지, 뭘 바꾸면 좋을지 내 실행 기록을 평소 쓰는 AI에게 보여주고 물어봐요.
+          </div>
+          <button className="btn block" onClick={() => setReviewOpen(true)}>
+            실행 기록 내보내기
+          </button>
+        </div>
 
         <div className="card">
           <h3 style={{ marginTop: 0 }}>한 줄 일기</h3>
@@ -213,6 +225,8 @@ export default function Records() {
           ))}
         </div>
       </div>
+
+      <AiReviewSheet open={reviewOpen} onClose={() => setReviewOpen(false)} state={state} />
     </>
   );
 }

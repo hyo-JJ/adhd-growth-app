@@ -400,6 +400,20 @@ button {
   border-radius: 999px;
 }
 
+/* AI review prompt preview */
+.prompt-preview {
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 12px;
+  border-radius: 10px;
+  margin: 0;
+}
+
 /* home: tasks grouped by category */
 .cat-group {
   background: var(--surface);

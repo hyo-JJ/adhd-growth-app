@@ -1,5 +1,6 @@
 import { CATEGORIES } from './categories';
 import { today, addDays, weekday, weekdayLabel } from './date';
+import { dayStatus } from './stats';
 
 const COACH_PROMPT = `너는 ADHD 사용자를 위한 목표 관리 및 실행 계획 코치다.
 
@@ -163,5 +164,66 @@ ${h.routineLines.join('\n') || '- 기록된 루틴 없음'}`);
   } else {
     parts.push('이제 1단계부터 시작해줘.');
   }
+  return parts.join('\n\n');
+}
+
+const REVIEW_PROMPT = `너는 ADHD 사용자를 위한 실행 점검 코치다.
+아래는 사용자가 성장관리 앱에 쌓은 실제 실행 기록이다.
+이 기록을 보고 사용자가 잘하고 있는 점과 바꾸면 좋을 점을 점검해준다.
+
+[점검 원칙]
+- 기록에 있는 사실만 근거로 말한다. 사용자의 성격, 의지, 생활을 추측하지 않는다.
+- 못 한 것을 탓하지 않는다. 잘 되고 있는 것부터 구체적인 숫자와 함께 짚어준다.
+- 계획량과 실제 실행량의 차이, 자주 빠지는 요일이나 루틴, 하루 할 일 양이 적절한지를 본다.
+- 원인이 기록만으로 분명하지 않으면 단정하지 말고 짧게 질문한다.
+- 바꿀 점은 지금 바로 해볼 수 있는 것으로 최대 3개까지만 제안한다.
+- 목표량을 임의로 낮추라고 하지 않는다. 낮추는 것이 좋아 보이면 이유와 함께 선택지로 제시한다.
+
+[답변 형식]
+1. 한 줄 총평
+2. 잘하고 있는 점 (2~3개)
+3. 바꿔보면 좋을 점 (최대 3개, 각각 "왜"와 "이렇게 해보기"를 함께)
+4. 확인하고 싶은 질문 (필요할 때만, 최대 2개)
+
+JSON이나 코드블록은 출력하지 않는다. 짧고 다정하게, 한국어로 답한다.`;
+
+// 실행 기록을 AI에게 보여주고 "잘하고 있는지 / 뭘 바꿀지" 점검받는 프롬프트
+export function buildReviewPrompt(state, { days = 14, includeJournal = true, concern = '' } = {}) {
+  const t = today();
+  const h = buildHistorySummary(state, days, t);
+
+  const dayLines = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = addDays(t, -i);
+    const s = dayStatus(state, d);
+    if (s.totalCount === 0) continue;
+    const busy = state.minimalMode?.[d] ? ' [바쁜 날: 최소 행동 모드]' : '';
+    dayLines.push(`- ${d} (${weekdayLabel(weekday(d))}): ${s.totalCount}개 중 ${s.doneCount}개 완료${busy}`);
+    for (const item of s.items) {
+      const amount = item.kind === 'routine' ? ` ${item.done ? item.amountDone : 0}/${item.target}${item.unit}` : '';
+      const optional = item.required ? '' : ' (가능하면)';
+      dayLines.push(`  ${item.done ? '✓ 함' : '✗ 못 함'}: ${item.title}${amount}${optional}`);
+    }
+  }
+
+  const parts = [
+    REVIEW_PROMPT,
+    `[기간] ${h.start} ~ ${h.end} (오늘 ${t}, ${weekdayLabel(weekday(t))}요일)`,
+    `[설정] 하루 최대 할 일 수: ${state.dailyMaxTasks ?? '정하지 않음'}`,
+    `[목표]\n${h.goalLines.join('\n') || '- 등록된 목표 없음'}`,
+    `[루틴과 할 일 실행 기록]\n${h.routineLines.join('\n') || '- 기록 없음'}`,
+    `[날짜별로 한 것과 못 한 것]\n${dayLines.join('\n') || '- 기록 없음'}`,
+  ];
+
+  if (includeJournal) {
+    const journal = Object.entries(state.journals)
+      .filter(([d]) => d >= h.start && d <= h.end)
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([d, text]) => `- ${d}: ${text}`);
+    if (journal.length) parts.push(`[한 줄 일기]\n${journal.join('\n')}`);
+  }
+
+  if (concern.trim()) parts.push(`[사용자가 특히 궁금한 점]\n${concern.trim()}`);
+  parts.push('위 기록을 바탕으로 답변 형식에 맞춰 점검해줘.');
   return parts.join('\n\n');
 }
