@@ -53,6 +53,13 @@ export default function Home() {
   }, [incomplete.length]);
   const hero = incomplete[heroIndex] || null;
   const rest = items.filter((i) => !(hero && i.kind === hero.kind && i.id === hero.id));
+  // 할 일이 많아도 한눈에 보이게 카테고리별로 묶는다 (CATEGORIES 순서 유지)
+  const restGroups = CATEGORIES.map((cat) => {
+    const groupItems = rest.filter((i) => getCategory(i.category).id === cat.id);
+    return { cat, items: groupItems, doneCount: groupItems.filter((i) => i.done).length };
+  }).filter((g) => g.items.length > 0);
+  // 직접 접거나 편 그룹만 기록. 기록이 없으면 다 끝난 그룹은 접어둔다
+  const [collapsedCats, setCollapsedCats] = useState({});
 
   function toggleRoutine(item) {
     if (item.done) {
@@ -231,32 +238,50 @@ export default function Home() {
               ))}
             </div>
 
-            {rest.map((item) => {
-              const cat = getCategory(item.category);
-              const targetLabel = [
-                item.time,
-                cat.label,
-                item.kind === 'routine' && `${minimal && item.minTarget != null ? item.minTarget : item.target}${item.unit}`,
-                !item.required && '가능하면',
-              ]
-                .filter(Boolean)
-                .join(' · ');
-              const promote = () => {
-                if (item.done) return;
-                const idx = incomplete.findIndex((i) => i.kind === item.kind && i.id === item.id);
-                if (idx !== -1) setHeroIndex(idx);
-              };
+            {restGroups.map(({ cat, items: groupItems, doneCount }) => {
+              const allDone = doneCount === groupItems.length;
+              const collapsed = collapsedCats[cat.id] ?? allDone;
               return (
-                <div className={'task-row' + (item.done ? ' done-row' : '')} key={item.kind + item.id}>
-                  <CategoryIcon id={item.category} />
-                  <div className="task-title" onClick={promote} style={{ cursor: item.done ? 'default' : 'pointer' }}>
-                    <span className={item.done ? 'done-text' : ''}>{item.title}</span>
-                    <div className="task-meta">{targetLabel}</div>
-                    {item.carriedFrom && <div className="task-meta">밀린 일정에서 이동됨</div>}
-                  </div>
-                  <button className={'checkbox' + (item.done ? ' done' : '')} onClick={() => toggleItem(item)} aria-label="완료 체크">
-                    {item.done ? '✓' : ''}
+                <div className={'cat-group' + (allDone ? ' all-done' : '')} key={cat.id}>
+                  <button
+                    className="cat-group-header"
+                    onClick={() => setCollapsedCats((m) => ({ ...m, [cat.id]: !collapsed }))}
+                    aria-expanded={!collapsed}
+                  >
+                    <CategoryIcon id={cat.id} size={30} />
+                    <span className="cat-group-label">{cat.label}</span>
+                    <span className="cat-group-count" style={{ color: cat.color, background: cat.bg }}>
+                      {allDone ? '✓ 완료' : `${doneCount}/${groupItems.length}`}
+                    </span>
+                    <span className={'cat-group-chevron' + (collapsed ? '' : ' open')}>⌄</span>
                   </button>
+                  {!collapsed &&
+                    groupItems.map((item) => {
+                      const targetLabel = [
+                        item.time,
+                        item.kind === 'routine' && `${minimal && item.minTarget != null ? item.minTarget : item.target}${item.unit}`,
+                        !item.required && '가능하면',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ');
+                      const promote = () => {
+                        if (item.done) return;
+                        const idx = incomplete.findIndex((i) => i.kind === item.kind && i.id === item.id);
+                        if (idx !== -1) setHeroIndex(idx);
+                      };
+                      return (
+                        <div className={'task-row' + (item.done ? ' done-row' : '')} key={item.kind + item.id}>
+                          <div className="task-title" onClick={promote} style={{ cursor: item.done ? 'default' : 'pointer' }}>
+                            <span className={item.done ? 'done-text' : ''}>{item.title}</span>
+                            {targetLabel && <div className="task-meta">{targetLabel}</div>}
+                            {item.carriedFrom && <div className="task-meta">밀린 일정에서 이동됨</div>}
+                          </div>
+                          <button className={'checkbox' + (item.done ? ' done' : '')} onClick={() => toggleItem(item)} aria-label="완료 체크">
+                            {item.done ? '✓' : ''}
+                          </button>
+                        </div>
+                      );
+                    })}
                 </div>
               );
             })}
