@@ -1,149 +1,52 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
-import { getCategory } from '../lib/categories';
-import { today, weekdayLabel } from '../lib/date';
-import { dayStatus, weekDates, dailyFocusMinutes, weeklyCategorySummary } from '../lib/stats';
+import { CATEGORIES, getCategory } from '../lib/categories';
+import { today, addDays, formatKorean } from '../lib/date';
+import { dayItems } from '../lib/stats';
+import { SLOTS, slotOfTime, currentSlot } from '../lib/timeSlot';
 import Mascot from '../components/Mascot';
 import CategoryIcon from '../components/CategoryIcon';
 import AiReviewSheet from '../components/AiReviewSheet';
+import AddTaskSheet from '../components/AddTaskSheet';
 
-// 이번 주에 기록이 있는 분야 중 많이 한 순서로 최대 4개, 기록이 없으면 등록된 루틴의 분야로 채운다.
-function reportCategories(state, catSummary) {
-  const used = Object.keys(catSummary).sort((a, b) => catSummary[b].days.size - catSummary[a].days.size);
-  const planned = [...new Set(state.routines.map((r) => getCategory(r.category).id))];
-  return [...new Set([...used, ...planned])].slice(0, 4);
-}
-
-function formatCatValue(bucket) {
-  if (!bucket) return { value: '-', sub: '아직 기록 없어요' };
-  if (bucket.unit === '분') {
-    const h = Math.floor(bucket.minutes / 60);
-    const m = bucket.minutes % 60;
-    return { value: h > 0 ? `${h}시간 ${m}분` : `${m}분`, sub: `${bucket.days.size}일 완료` };
-  }
-  return { value: `${bucket.otherTotal}${bucket.unit}`, sub: `${bucket.days.size}일 완료` };
-}
-
-function WeeklyReport({ state }) {
-  const t = today();
-  const dates = useMemo(() => weekDates(t), [t]);
-  const focusByDay = useMemo(() => dailyFocusMinutes(state, dates), [state, dates]);
-  const catSummary = useMemo(() => weeklyCategorySummary(state, dates), [state, dates]);
-  const reportCats = reportCategories(state, catSummary);
-
-  const movedDays = dates.filter((d) => d <= t && dayStatus(state, d).doneCount > 0).length;
-  const totalFocusMinutes = focusByDay.reduce((sum, d) => sum + d.minutes, 0);
-  const maxMinutes = Math.max(1, ...focusByDay.map((d) => d.minutes));
-
-  return (
-    <div className="card">
-      <div className="task-meta" style={{ marginBottom: 2 }}>
-        주간 리포트 · {dates[0].slice(5).replace('-', '월 ')}일–{dates[6].slice(8)}일
-      </div>
-      <h2 style={{ margin: '0 0 14px' }}>이번 주 7일 중 {movedDays}일 움직였어요</h2>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-2)', borderRadius: 14, padding: 14, marginBottom: 16 }}>
-        <Mascot pose="main" size={48} />
-        <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>
-          연속 기록이 끊겨도 괜찮아요. 쌓인 날에 꽃 도장을 찍어 드릴게요.
-        </div>
-      </div>
-
-      <div className="streak-row">
-        {dates.map((d) => {
-          const moved = d <= t && dayStatus(state, d).doneCount > 0;
-          return (
-            <div className="streak-day" key={d}>
-              <span className={'flower-dot' + (moved ? ' done' : '') + (d === t ? ' today' : '')}>
-                {moved ? '🌸' : ''}
-              </span>
-              <span className="lab">{weekdayLabel(new Date(d + 'T00:00:00').getDay())}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '22px 0 10px' }}>
-        <span style={{ fontWeight: 700, fontSize: 14 }}>집중한 시간</span>
-        <span style={{ fontWeight: 800, fontSize: 20 }}>
-          {Math.floor(totalFocusMinutes / 60)}시간 {totalFocusMinutes % 60}분
-        </span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 90 }}>
-        {focusByDay.map((d) => (
-          <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            {d.minutes > 0 ? (
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: 26,
-                  height: Math.max(10, (d.minutes / maxMinutes) * 70),
-                  borderRadius: 999,
-                  background: d.date === t ? 'var(--hero-2)' : 'var(--accent)',
-                  opacity: d.date === t ? 1 : 0.75,
-                }}
-              />
-            ) : (
-              <div className="task-meta" style={{ alignSelf: 'flex-end', marginBottom: 4 }}>
-                쉼
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-        {dates.map((d) => (
-          <div key={d} className="task-meta" style={{ flex: 1, textAlign: 'center' }}>
-            {weekdayLabel(new Date(d + 'T00:00:00').getDay())}
-          </div>
-        ))}
-      </div>
-
-      {reportCats.length > 0 && (
-      <div className="stat-grid" style={{ marginTop: 20 }}>
-        {reportCats.map((cid) => {
-          const cat = getCategory(cid);
-          const { value, sub } = formatCatValue(catSummary[cid]);
-          return (
-            <div className="stat-tile" style={{ background: cat.bg }} key={cid}>
-              <div className="lab" style={{ color: cat.color }}>
-                {cat.emoji} {cat.label}
-              </div>
-              <div className="val">{value}</div>
-              <div className="lab-sub">{sub}</div>
-            </div>
-          );
-        })}
-      </div>
-      )}
-    </div>
-  );
-}
+const SLOT_DEFAULT_TIME = { morning: '09:00', afternoon: '13:00', evening: '19:00', any: '' };
 
 export default function Records() {
-  const { state, setCompletion, clearCompletion } = useStore();
-  const [logDate, setLogDate] = useState(today());
+  const { state, setCompletion, clearCompletion, toggleCustomTask, addCustomTask } = useStore();
+  const t = today();
+  const [params, setParams] = useSearchParams();
+  const slotId = SLOTS.some((s) => s.id === params.get('slot')) ? params.get('slot') : currentSlot();
+  const [date, setDate] = useState(t);
+  const [addOpen, setAddOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [amountOpen, setAmountOpen] = useState(false);
 
-  const routines = state.routines;
+  const minimal = date === t && !!state.minimalMode[t];
+  const items = useMemo(() => dayItems(state, date), [state, date]);
+  const slotCounts = Object.fromEntries(SLOTS.map((s) => [s.id, items.filter((i) => slotOfTime(i.time) === s.id)]));
+  const slotItems = slotCounts[slotId];
 
-  function currentAmount(routineId) {
-    return state.completions[routineId]?.[logDate];
+  // 같은 시간대 안에서는 공부/생활리듬/운동… 분야별로 묶는다
+  const groups = CATEGORIES.map((cat) => ({
+    cat,
+    items: slotItems.filter((i) => getCategory(i.category).id === cat.id),
+  }))
+    .filter((g) => g.items.length > 0)
+    .map((g, gi, arr) => ({ ...g, start: arr.slice(0, gi).reduce((n, x) => n + x.items.length, 0) }));
+
+  function selectSlot(id) {
+    setParams({ slot: id }, { replace: true });
   }
 
-  const history = useMemo(() => {
-    const items = [];
-    for (const r of routines) {
-      const byDate = state.completions[r.id] || {};
-      for (const [date, amount] of Object.entries(byDate)) {
-        items.push({ date, label: `${getCategory(r.category).emoji} ${r.title} ${amount}${r.unit}` });
-      }
+  function toggleItem(item) {
+    if (item.kind === 'routine') {
+      if (item.done) clearCompletion(item.id, date);
+      else setCompletion(item.id, date, minimal && item.minTarget != null ? item.minTarget : item.target);
+    } else {
+      toggleCustomTask(item.id);
     }
-    for (const t of state.customTasks) {
-      if (t.done) items.push({ date: t.date, label: `${getCategory(t.category).emoji} ${t.title} 완료` });
-    }
-    return items.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 20);
-  }, [state.completions, state.customTasks, routines]);
+  }
 
   const journalEntries = useMemo(
     () => Object.entries(state.journals).sort((a, b) => (a[0] < b[0] ? 1 : -1)),
@@ -153,14 +56,115 @@ export default function Records() {
   return (
     <>
       <div className="topbar">
-        <h1>기록</h1>
-        <div className="sub">루틴을 실제로 얼마나 했는지 기록해요</div>
+        <div>
+          <h1>기록</h1>
+          <div className="sub">시간대별로, 분야별로 지켜야 할 것들</div>
+        </div>
       </div>
+
       <div className="app-main" style={{ paddingTop: 4 }}>
-        <WeeklyReport state={state} />
+        <div className="date-stepper">
+          <button className="icon-btn soft" onClick={() => setDate((d) => addDays(d, -1))} aria-label="이전 날">
+            ‹
+          </button>
+          <div className="date-stepper-label">
+            {formatKorean(date)}
+            {date === t && <span className="today-badge">오늘</span>}
+          </div>
+          <button className="icon-btn soft" onClick={() => setDate((d) => addDays(d, 1))} disabled={date >= t} aria-label="다음 날">
+            ›
+          </button>
+        </div>
+
+        <div className="segmented">
+          {SLOTS.map((s) => {
+            const list = slotCounts[s.id];
+            const done = list.filter((i) => i.done).length;
+            return (
+              <button key={s.id} className={'seg-btn' + (slotId === s.id ? ' active' : '')} onClick={() => selectSlot(s.id)}>
+                <span className="seg-icon">{s.icon}</span>
+                <span>{s.label}</span>
+                {list.length > 0 && (
+                  <span className="seg-count">
+                    {done}/{list.length}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {groups.length === 0 && (
+          <div className="slot-empty">
+            <Mascot pose="lying" size={64} className="mascot-center" />
+            <div>이 시간대에는 할 일이 없어요</div>
+          </div>
+        )}
+
+        {groups.map(({ cat, items: groupItems, start }) => {
+          const done = groupItems.filter((i) => i.done).length;
+          return (
+            <div className="routine-group" key={cat.id}>
+              <div className="routine-group-header">
+                <span className="routine-group-label" style={{ color: cat.color }}>
+                  {cat.emoji} {cat.label}
+                </span>
+                <span className="routine-group-count">
+                  {done}/{groupItems.length}
+                </span>
+              </div>
+              {groupItems.map((item, idx) => {
+                const meta = [
+                  item.time,
+                  item.kind === 'routine' && `${minimal && item.minTarget != null ? item.minTarget : item.target}${item.unit}`,
+                  item.kind === 'custom' && '오늘 할 일',
+                  !item.required && '가능하면',
+                ]
+                  .filter(Boolean)
+                  .join(' · ');
+                return (
+                  <div className={'routine-row' + (item.done ? ' done' : '')} key={item.kind + item.id}>
+                    <span className="routine-num" style={{ background: cat.bg, color: cat.color }}>
+                      {start + idx + 1}
+                    </span>
+                    <span className="routine-thumb">
+                      <CategoryIcon id={cat.id} size={40} />
+                    </span>
+                    <div className="routine-info">
+                      <div className="routine-title">{item.title}</div>
+                      {meta && <div className="task-meta">{meta}</div>}
+                    </div>
+                    <button className={'checkbox' + (item.done ? ' done' : '')} onClick={() => toggleItem(item)} aria-label="완료 체크">
+                      {item.done ? '✓' : ''}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        <button className="btn pill block" onClick={() => setAddOpen(true)}>
+          + 할 일 추가
+        </button>
+
+        <div className="card" style={{ marginTop: 20 }}>
+          <h3>한 줄 일기</h3>
+          {journalEntries.length === 0 && <div className="empty-state">홈에서 오늘을 마무리하며 한 줄 적어보세요.</div>}
+          {journalEntries.map(([d, text]) => (
+            <div className="task-row plain" key={d}>
+              <div className="task-title" style={{ fontWeight: 500 }}>
+                {text}
+              </div>
+              <span className="task-meta" style={{ flexShrink: 0 }}>
+                {d.slice(5).replace('-', '/')}
+              </span>
+            </div>
+          ))}
+        </div>
 
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>🔍 AI에게 점검받기</h3>
+          <h3>🔍 AI에게 점검받기</h3>
           <div className="task-meta" style={{ marginBottom: 10 }}>
             잘하고 있는지, 뭘 바꾸면 좋을지 내 실행 기록을 평소 쓰는 AI에게 보여주고 물어봐요.
           </div>
@@ -170,62 +174,56 @@ export default function Records() {
         </div>
 
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>한 줄 일기</h3>
-          {journalEntries.length === 0 && <div className="empty-state">홈에서 오늘을 마무리하며 한 줄 적어보세요.</div>}
-          {journalEntries.map(([date, text]) => (
-            <div className="task-row plain" key={date}>
-              <div className="task-title" style={{ fontWeight: 500 }}>{text}</div>
-              <span className="task-meta" style={{ flexShrink: 0 }}>{date.slice(5).replace('-', '/')}</span>
+          <button className="accordion-header" style={{ width: '100%', background: 'none', border: 'none', padding: 0, color: 'inherit', font: 'inherit' }} onClick={() => setAmountOpen((o) => !o)}>
+            <div style={{ textAlign: 'left' }}>
+              <h3 style={{ margin: 0 }}>루틴 양 직접 기록하기</h3>
+              <div className="task-meta">{formatKorean(date)} · 실제로 한 만큼 숫자로 적어요</div>
             </div>
-          ))}
-        </div>
-
-        <div className="card">
-          <label style={{ marginTop: 0 }}>기록할 날짜</label>
-          <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} max={today()} />
-        </div>
-
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>루틴 기록</h3>
-          {routines.length === 0 && <div className="empty-state">등록된 루틴이 없어요. MY 탭에서 추가해보세요.</div>}
-          {routines.map((r) => {
-            const amt = currentAmount(r.id);
-            return (
-              <div className="task-row plain" key={r.id}>
-                <CategoryIcon id={r.category} />
-                <div className="task-title">
-                  {r.title}
-                  <div className="task-meta">목표 {r.amount}{r.unit}</div>
-                </div>
-                <input
-                  type="number"
-                  style={{ width: 72 }}
-                  placeholder="0"
-                  value={amt ?? ''}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === '') clearCompletion(r.id, logDate);
-                    else setCompletion(r.id, logDate, Number(v));
-                  }}
-                />
-                <span className="task-meta">{r.unit}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>최근 기록</h3>
-          {history.length === 0 && <div className="empty-state">아직 기록이 없어요.</div>}
-          {history.map((h, idx) => (
-            <div className="task-row plain" key={idx}>
-              <div className="task-title">{h.label}</div>
-              <span className="task-meta">{h.date.slice(5)}</span>
+            <span className={'chevron' + (amountOpen ? ' open' : '')}>›</span>
+          </button>
+          {amountOpen && (
+            <div style={{ marginTop: 10 }}>
+              {state.routines.length === 0 && <div className="empty-state">등록된 루틴이 없어요. MY 탭에서 추가해보세요.</div>}
+              {state.routines.map((r) => {
+                const amt = state.completions[r.id]?.[date];
+                return (
+                  <div className="task-row plain" key={r.id}>
+                    <CategoryIcon id={r.category} />
+                    <div className="task-title">
+                      {r.title}
+                      <div className="task-meta">
+                        목표 {r.amount}
+                        {r.unit}
+                      </div>
+                    </div>
+                    <input
+                      type="number"
+                      style={{ width: 72 }}
+                      placeholder="0"
+                      value={amt ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '') clearCompletion(r.id, date);
+                        else setCompletion(r.id, date, Number(v));
+                      }}
+                    />
+                    <span className="task-meta">{r.unit}</span>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          )}
         </div>
       </div>
 
+      <AddTaskSheet
+        key={slotId + date}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        date={date}
+        defaultTime={SLOT_DEFAULT_TIME[slotId]}
+        addCustomTask={addCustomTask}
+      />
       <AiReviewSheet open={reviewOpen} onClose={() => setReviewOpen(false)} state={state} />
     </>
   );

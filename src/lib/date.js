@@ -55,3 +55,8 @@ export function getMonthMatrix(year, month) {
   }
   return weeks;
 }
+
+export function monthDates(year, month) {
+  const days = new Date(year, month + 1, 0).getDate();
+  return Array.from({ length: days }, (_, i) => toDateStr(new Date(year, month, i + 1)));
+}

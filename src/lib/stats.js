@@ -121,3 +121,32 @@ export function goalWeeklyProgress(state, goalId, dates = weekDates()) {
   }
   return { done, total };
 }
+
+// 기간(날짜 배열) 동안의 완료율. 오늘 이후 날짜와 할 일이 없는 날은 빼고 센다.
+export function rangeRate(state, dates) {
+  const t = todayStr();
+  let done = 0;
+  let total = 0;
+  for (const d of dates) {
+    if (d > t) continue;
+    const st = dayStatus(state, d);
+    done += st.doneCount;
+    total += st.totalCount;
+  }
+  return { done, total, rate: total === 0 ? null : Math.round((done / total) * 100) };
+}
+
+export function categoryRates(state, dates) {
+  const t = todayStr();
+  const byCat = {};
+  for (const d of dates) {
+    if (d > t) continue;
+    for (const item of dayItems(state, d)) {
+      const b = byCat[item.category] || { done: 0, total: 0 };
+      b.total += 1;
+      if (item.done) b.done += 1;
+      byCat[item.category] = b;
+    }
+  }
+  return byCat;
+}
